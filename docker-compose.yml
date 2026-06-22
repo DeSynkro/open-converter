@@ -1,0 +1,8 @@
+services:
+  converter:
+    build: .
+    ports:
+      - "9002:9002"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

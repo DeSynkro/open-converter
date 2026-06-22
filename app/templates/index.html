@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Converter (α)</title>
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <img src="/static/logo.png" alt="Open Converter" class="logo">
+      <h1>Open Converter</h1>
+      <p class="subtitle">Convert images, video, and audio (α), fully offline, no limits</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <form id="upload-form"
+          hx-post="/upload"
+          hx-target="#file-list"
+          hx-swap="beforeend"
+          enctype="multipart/form-data">
+      <div id="drop-zone">
+        <input type="file" id="file-input" name="files" multiple hidden>
+        <div class="drop-content">
+          <span class="drop-icon">&#x2193;</span>
+          <p>Drag &amp; drop files here</p>
+          <p class="drop-or">or click to select files</p>
+        </div>
+      </div>
+      <div class="upload-progress">
+        <div class="upload-progress-bar"></div>
+      </div>
+    </form>
+
+    <div class="file-list-bar">
+      <span class="file-count" id="file-count">{{ files|length }} file{% if files|length != 1 %}s{% endif %}</span>
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="image">Photos</button>
+      <button class="filter-btn" data-filter="video" disabled title="Coming soon">Videos</button>
+      <button class="filter-btn" data-filter="audio" disabled title="Coming soon">Audio</button>
+      <div class="bar-actions">
+        <button class="btn btn-sm btn-outline" id="settings-btn">&#x2699; Conversion Settings</button>
+        <button class="btn btn-sm btn-primary" id="convert-all-btn" {% if not files %}disabled{% endif %}>&#x26A1; Convert All</button>
+        <button class="btn btn-sm btn-danger" hx-delete="/files" hx-target="#file-list" hx-swap="outerHTML" {% if not files %}disabled{% endif %}>
+          &#x1F5D1; Clear All
+        </button>
+      </div>
+    </div>
+
+    <div id="file-list">
+      {% for f in files %}
+      {% set has_ov = f['id'] in overrides %}
+      <div class="file-entry" data-id="{{ f['id'] }}" data-category="{{ f['category'] }}" data-name="{{ f['filename'] }}">
+        <span class="file-icon">{{ '&#x1F5BC;'|safe if f['category'] == 'image' else '&#x1F3AC;'|safe if f['category'] == 'video' else '&#x1F3B5;'|safe if f['category'] == 'audio' else '&#x1F4C4;'|safe }}</span>
+        <span class="file-name">{{ f['filename'] }}</span>
+        <span class="file-size">{{ '%0.1f KB'|format(f['size'] / 1024) if f['size'] < 1048576 else '%0.1f MB'|format(f['size'] / 1048576) }}</span>
+        <button class="info-btn" data-id="{{ f['id'] }}" title="Show metadata">&#x24D8;</button>
+        <button class="gear-btn{{ ' edited' if has_ov else '' }}" data-id="{{ f['id'] }}" title="Conversion settings">&#x2699;</button>
+        <button class="del-btn" data-id="{{ f['id'] }}" title="Left‑click to confirm · Right‑click to remove">&#x1F5D1;</button>
+        <button class="convert-btn" data-id="{{ f['id'] }}" title="Convert this file">&#x25B6;</button>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <footer class="footer">
+    BUILT WITH <span class="heart">&hearts;</span> BY <a href="https://desynkro.com" target="_blank">DESYNKRO</a> · v0.1.0-alpha
+  </footer>
+
+  <!-- Duplicate modal -->
+  <div id="modal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-title">&#x26A0; Files already in queue</p>
+      <div id="modal-files"></div>
+      <div class="modal-actions">
+        <button id="modal-skip" class="btn btn-primary">Skip Duplicates</button>
+        <button id="modal-add-all" class="btn btn-outline">Add Again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Metadata modal -->
+  <div id="meta-modal" class="modal-overlay">
+    <div class="modal-box meta-modal-box">
+      <div id="meta-modal-body"></div>
+      <div class="modal-actions">
+        <button id="meta-modal-close" class="btn btn-outline">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-box settings-modal-box">
+      <div id="settings-modal-body"></div>
+      <div class="modal-actions">
+        <button id="settings-modal-reset" class="btn btn-outline" style="display:none">Reset to Default</button>
+        <button id="settings-modal-save" class="btn btn-primary">Save Settings</button>
+        <button id="settings-modal-close" class="btn btn-outline">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirmation modal -->
+  <div id="del-modal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-title">&#x1F5D1; Remove file?</p>
+      <p id="del-modal-text" class="del-modal-text">Remove this file from the queue?</p>
+      <div class="modal-actions">
+        <button id="del-modal-cancel" class="btn btn-outline">Cancel</button>
+        <button id="del-modal-confirm" class="btn btn-danger">Yes, Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Tooltip (fixed-position to avoid scroll-container clipping) -->
+  <div id="tooltip" class="tooltip"></div>
+
+  <script>
+    (function() {
+      const dropZone = document.getElementById('drop-zone');
+      const fileInput = document.getElementById('file-input');
+      const form = document.getElementById('upload-form');
+      const modal = document.getElementById('modal');
+      const modalFiles = document.getElementById('modal-files');
+      const modalSkip = document.getElementById('modal-skip');
+      const modalAddAll = document.getElementById('modal-add-all');
+      const metaModal = document.getElementById('meta-modal');
+      const metaBody = document.getElementById('meta-modal-body');
+      const metaClose = document.getElementById('meta-modal-close');
+      const settingsModal = document.getElementById('settings-modal');
+      const settingsBody = document.getElementById('settings-modal-body');
+      const settingsSave = document.getElementById('settings-modal-save');
+      const settingsClose = document.getElementById('settings-modal-close');
+      const settingsReset = document.getElementById('settings-modal-reset');
+      const delModal = document.getElementById('del-modal');
+      const delText = document.getElementById('del-modal-text');
+      const delCancel = document.getElementById('del-modal-cancel');
+      const delConfirm = document.getElementById('del-modal-confirm');
+      const toast = document.getElementById('toast');
+      const tooltip = document.getElementById('tooltip');
+
+      let pendingAllDt = null;
+      let pendingNonDupeDt = null;
+      let settingsUrl = '';
+      let settingsFileId = '';
+      let settingsIsGroup = true;
+      let pendingDelId = '';
+      let toastTimer = null;
+
+      const LOSSLESS_AUDIO = new Set(['FLAC', 'WAV', 'ALAC', 'AIFF']);
+
+      // ── Upload ───────────────────────────────────────
+
+      function getExistingNames() {
+        return new Set(
+          Array.from(document.querySelectorAll('.file-entry'))
+            .map(el => el.dataset.name)
+        );
+      }
+
+      function triggerUpload(files) {
+        fileInput.files = files;
+        htmx.trigger(form, 'submit');
+      }
+
+      function handleFiles(newFiles) {
+        const existingNames = getExistingNames();
+        const fileArray = Array.from(newFiles);
+        const dupeNames = fileArray.filter(f => existingNames.has(f.name));
+        const allDt = new DataTransfer();
+        const nonDupeDt = new DataTransfer();
+
+        fileArray.forEach(f => {
+          allDt.items.add(f);
+          if (!existingNames.has(f.name)) {
+            nonDupeDt.items.add(f);
+          }
+        });
+
+        if (dupeNames.length > 0) {
+          pendingAllDt = allDt;
+          pendingNonDupeDt = nonDupeDt;
+          modalFiles.innerHTML = dupeNames.map(f =>
+            '<span class="modal-filename">' + f.name + '</span>'
+          ).join('');
+          modal.classList.add('visible');
+        } else {
+          triggerUpload(allDt.files);
+        }
+      }
+
+      dropZone.addEventListener('click', function() {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+          handleFiles(this.files);
+        }
+      });
+
+      dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+      });
+
+      dropZone.addEventListener('dragleave', function() {
+        this.classList.remove('dragover');
+      });
+
+      dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+      });
+
+      modalAddAll.addEventListener('click', function() {
+        modal.classList.remove('visible');
+        if (pendingAllDt) triggerUpload(pendingAllDt.files);
+      });
+
+      modalSkip.addEventListener('click', function() {
+        modal.classList.remove('visible');
+        if (pendingNonDupeDt && pendingNonDupeDt.files.length > 0) {
+          triggerUpload(pendingNonDupeDt.files);
+        }
+      });
+
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) modal.classList.remove('visible');
+      });
+
+      // ── Metadata ─────────────────────────────────────
+
+      document.body.addEventListener('click', function(e) {
+        const btn = e.target.closest('.info-btn');
+        if (btn) {
+          const id = btn.dataset.id;
+          metaBody.innerHTML = '<p class="meta-loading">Loading...</p>';
+          metaModal.classList.add('visible');
+          fetch('/files/' + id + '/metadata')
+            .then(r => r.text())
+            .then(html => { metaBody.innerHTML = html; })
+            .catch(() => { metaBody.innerHTML = '<p>Failed to load metadata</p>'; });
+        }
+        const moreBtn = e.target.closest('.meta-more-btn');
+        if (moreBtn) {
+          const id = moreBtn.dataset.id;
+          moreBtn.textContent = 'Loading...';
+          moreBtn.disabled = true;
+          fetch('/files/' + id + '/metadata?extended=1')
+            .then(r => r.text())
+            .then(html => { metaBody.innerHTML = html; })
+            .catch(() => { metaBody.innerHTML = '<p>Failed to load metadata</p>'; });
+        }
+      });
+
+      metaClose.addEventListener('click', function() {
+        metaModal.classList.remove('visible');
+      });
+
+      metaModal.addEventListener('click', function(e) {
+        if (e.target === this) metaModal.classList.remove('visible');
+      });
+
+      // ── Delete ───────────────────────────────────────
+
+      function doDelete(fileId, entryEl) {
+        fetch('/files/' + fileId, { method: 'DELETE' })
+          .then(() => {
+            if (entryEl) entryEl.remove();
+            tooltip.classList.remove('visible');
+            updateFileCount();
+          });
+      }
+
+      // Right-click on done convert button: re-convert
+      document.body.addEventListener('contextmenu', function(e) {
+        const convBtn = e.target.closest('.convert-btn.done');
+        if (convBtn) {
+          e.preventDefault();
+          const id = convBtn.dataset.id;
+          fetch('/convert/' + id, { method: 'POST' });
+          convBtn.className = 'convert-btn converting';
+          convBtn.textContent = '';
+          startPolling();
+          showToast('Re-converting...');
+        }
+      });
+
+      // Right-click: immediate delete
+      document.body.addEventListener('contextmenu', function(e) {
+        const delBtn = e.target.closest('.del-btn');
+        if (delBtn) {
+          e.preventDefault();
+          const id = delBtn.dataset.id;
+          const entry = delBtn.closest('.file-entry');
+          doDelete(id, entry);
+          showToast('File removed');
+        }
+      });
+
+      // Left-click: show confirmation
+      document.body.addEventListener('click', function(e) {
+        const delBtn = e.target.closest('.del-btn');
+        if (delBtn) {
+          e.preventDefault();
+          pendingDelId = delBtn.dataset.id;
+          const name = delBtn.closest('.file-entry').querySelector('.file-name').textContent;
+          delText.textContent = 'Remove "' + name + '" from the queue?';
+          delModal.classList.add('visible');
+        }
+      });
+
+      delConfirm.addEventListener('click', function() {
+        delModal.classList.remove('visible');
+        if (pendingDelId) {
+          const entry = document.querySelector('.file-entry[data-id="' + pendingDelId + '"]');
+          doDelete(pendingDelId, entry);
+          pendingDelId = '';
+        }
+      });
+
+      delCancel.addEventListener('click', function() {
+        delModal.classList.remove('visible');
+        pendingDelId = '';
+      });
+
+      delModal.addEventListener('click', function(e) {
+        if (e.target === this) { delModal.classList.remove('visible'); pendingDelId = ''; }
+      });
+
+      // ── Toast ────────────────────────────────────────
+
+      function showToast(msg) {
+        toast.textContent = msg;
+        toast.classList.add('visible');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function() {
+          toast.classList.remove('visible');
+        }, 2000);
+      }
+
+      // ── Tooltip ──────────────────────────────────────
+
+      document.body.addEventListener('mouseenter', function(e) {
+        var btn = e.target.closest('.del-btn');
+        if (btn) {
+          tooltip.textContent = btn.title;
+          var rect = btn.getBoundingClientRect();
+          tooltip.style.left = (rect.left + rect.width / 2) + 'px';
+          tooltip.style.top = (rect.top - 6) + 'px';
+          tooltip.style.transform = 'translate(-50%, -100%)';
+          tooltip.classList.add('visible');
+        }
+      }, true);
+
+      document.body.addEventListener('mouseleave', function(e) {
+        if (e.target.closest('.del-btn')) {
+          tooltip.classList.remove('visible');
+        }
+      }, true);
+
+      // ── Settings ─────────────────────────────────────
+
+      function openSettings(url, isGroup, fileId) {
+        settingsUrl = url;
+        settingsFileId = fileId || '';
+        settingsIsGroup = isGroup;
+        settingsBody.innerHTML = '<p class="meta-loading">Loading...</p>';
+        settingsModal.classList.add('visible');
+        settingsReset.style.display = isGroup ? 'none' : 'inline-block';
+        fetch(url)
+          .then(r => r.text())
+          .then(html => {
+            settingsBody.innerHTML = html;
+            wireSettingsTabs();
+            wireSlider();
+            wireAudioFormat();
+            wireAspectLock();
+            wireResizeTabs();
+            wireFileSizeGoal();
+          })
+          .catch(() => { settingsBody.innerHTML = '<p>Failed to load settings</p>'; });
+      }
+
+      function wireSettingsTabs() {
+        document.querySelectorAll('.settings-tab').forEach(tab => {
+          tab.addEventListener('click', function() {
+            const cat = this.dataset.cat;
+            openSettings('/settings/group?category=' + cat, true, '');
+          });
+        });
+      }
+
+      function wireSlider() {
+        document.querySelectorAll('.settings-slider').forEach(slider => {
+          slider.addEventListener('input', function() {
+            const valSpan = this.closest('.settings-field').querySelector('.settings-q-val');
+            if (valSpan) valSpan.textContent = this.value;
+          });
+        });
+      }
+
+      function wireAudioFormat() {
+        const select = settingsBody.querySelector('select[name="output_format"]');
+        if (!select) return;
+        const form = select.closest('.settings-form');
+        const isGroup = form && form.dataset.isGroup === '1';
+        if (isGroup) {
+          const activeTab = document.querySelector('.settings-tab.active');
+          if (!activeTab || activeTab.dataset.cat !== 'audio') return;
+        } else {
+          const fileId = form ? form.dataset.fileId : '';
+          if (!fileId) return;
+          const entry = document.querySelector('.file-entry[data-id="' + fileId + '"]');
+          if (!entry || entry.dataset.category !== 'audio') return;
+        }
+        updateAudioQuality(select);
+        select.addEventListener('change', function() { updateAudioQuality(this); });
+      }
+
+      function updateAudioQuality(select) {
+        const fmt = select.value;
+        const field = select.closest('.settings-body').querySelector('.settings-field:nth-child(2)');
+        if (!field) return;
+        const slider = field.querySelector('.settings-slider');
+        if (!slider) return;
+        if (LOSSLESS_AUDIO.has(fmt)) {
+          field.classList.add('disabled-field');
+          slider.disabled = true;
+        } else {
+          field.classList.remove('disabled-field');
+          slider.disabled = false;
+        }
+      }
+
+      function wireAspectLock() {
+        const field = settingsBody.querySelector('.settings-field[data-orig-w]');
+        if (!field) return;
+        const wInput = field.querySelector('.settings-res-w');
+        const hInput = field.querySelector('.settings-res-h');
+        const lockBtn = field.querySelector('.aspect-lock-btn');
+        if (!wInput || !hInput || !lockBtn) return;
+        const ow = parseFloat(field.dataset.origW);
+        const oh = parseFloat(field.dataset.origH);
+        if (!ow || !oh) return;
+        const ratio = ow / oh;
+        const lockHidden = document.querySelector('[name="aspect_locked"]');
+        let locked = lockHidden ? lockHidden.value === '1' : false;
+
+        lockBtn.addEventListener('click', function() {
+          locked = !locked;
+          lockBtn.textContent = locked ? '\u{1F517}' : '\u{1F512}';
+          lockBtn.title = locked ? 'Lock aspect ratio' : 'Unlock aspect ratio';
+          if (lockHidden) lockHidden.value = locked ? '1' : '0';
+        });
+
+        wInput.addEventListener('input', function() {
+          if (locked && this.value) {
+            hInput.value = Math.round(parseFloat(this.value) / ratio);
+          }
+        });
+
+        hInput.addEventListener('input', function() {
+          if (locked && this.value) {
+            wInput.value = Math.round(parseFloat(this.value) * ratio);
+          }
+        });
+      }
+
+      function wireResizeTabs() {
+        const container = settingsBody.querySelector('.mode-tabs');
+        if (!container) return;
+        const tabs = container.querySelectorAll('.mode-tab');
+        const hidden = container.parentElement.querySelector('[name="use_scale"]');
+        const sizeMode = container.parentElement.querySelector('.size-mode');
+        const scaleMode = container.parentElement.querySelector('.scale-mode');
+
+        tabs.forEach(function(tab) {
+          tab.addEventListener('click', function() {
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            this.classList.add('active');
+            var mode = this.dataset.mode;
+            if (hidden) hidden.value = mode === 'scale' ? '1' : '0';
+            if (sizeMode) sizeMode.style.display = mode === 'size' ? 'flex' : 'none';
+            if (scaleMode) scaleMode.style.display = mode === 'scale' ? 'block' : 'none';
+          });
+        });
+      }
+
+      function wireFileSizeGoal() {
+        var cb = settingsBody.querySelector('[name="file_size_goal"]');
+        if (!cb) return;
+        var targetField = cb.closest('.settings-field').nextElementSibling;
+        if (!targetField) return;
+        cb.addEventListener('change', function() {
+          targetField.style.display = this.checked ? 'block' : 'none';
+        });
+      }
+
+      document.getElementById('settings-btn').addEventListener('click', function() {
+        openSettings('/settings/group?category=image', true, '');
+      });
+
+      document.body.addEventListener('click', function(e) {
+        const gear = e.target.closest('.gear-btn');
+        if (gear) {
+          const id = gear.dataset.id;
+          openSettings('/files/' + id + '/settings', false, id);
+        }
+      });
+
+      settingsSave.addEventListener('click', function() {
+        const form = settingsBody.querySelector('.settings-form');
+        if (!form) return;
+
+        const fd = new FormData();
+        if (!settingsIsGroup) {
+          fd.append('file_id', settingsFileId);
+        } else {
+          const activeTab = document.querySelector('.settings-tab.active');
+          fd.append('category', activeTab ? activeTab.dataset.cat : 'image');
+        }
+        form.querySelectorAll('select, input').forEach(function(el) {
+          if (!el.name) return;
+          if (el.type === 'checkbox' && !el.checked) return;
+          fd.append(el.name, el.value);
+        });
+
+        fetch(settingsUrl, { method: 'POST', body: fd })
+          .then(function() {
+            settingsModal.classList.remove('visible');
+            if (!settingsIsGroup && settingsFileId) {
+              var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
+              if (gear) gear.classList.add('edited');
+            }
+          });
+      });
+
+      settingsReset.addEventListener('click', function() {
+        if (!settingsFileId) return;
+        fetch('/files/' + settingsFileId + '/settings', { method: 'DELETE' })
+          .then(function() { return fetch('/files/' + settingsFileId + '/settings'); })
+          .then(function(r) { return r.text(); })
+          .then(function(html) {
+            settingsBody.innerHTML = html;
+            wireSettingsTabs();
+            wireSlider();
+            wireAudioFormat();
+            wireAspectLock();
+            var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
+            if (gear) gear.classList.remove('edited');
+          });
+      });
+
+      settingsClose.addEventListener('click', function() {
+        settingsModal.classList.remove('visible');
+      });
+
+      settingsModal.addEventListener('click', function(e) {
+        if (e.target === this) settingsModal.classList.remove('visible');
+      });
+
+      // ── Convert ────────────────────────────────────────
+
+      var pollTimer = null;
+
+      function startPolling() {
+        if (pollTimer) return;
+        poll();
+        pollTimer = setInterval(poll, 1500);
+      }
+
+      function stopPolling() {
+        if (pollTimer) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+        }
+      }
+
+      function poll() {
+        fetch('/convert/status')
+          .then(function(r) { return r.json(); })
+          .then(function(states) {
+            var allDone = true;
+            var keys = Object.keys(states);
+            var convertAll = document.getElementById('convert-all-btn');
+
+            keys.forEach(function(id) {
+              var state = states[id];
+              var btn = document.querySelector('.convert-btn[data-id="' + id + '"]');
+              if (!btn) return;
+
+              if (state.status === 'running' || state.status === 'pending') {
+                allDone = false;
+                btn.className = 'convert-btn converting';
+                btn.textContent = '';
+              } else if (state.status === 'done') {
+                btn.className = 'convert-btn done';
+                btn.innerHTML = '&#x2B07;';
+              } else if (state.status === 'error') {
+                allDone = false;
+                btn.className = 'convert-btn error';
+                btn.innerHTML = '&#x25B6;';
+                showToast(state.error || 'Conversion failed');
+              }
+            });
+
+            if (allDone && keys.length > 0) {
+              stopPolling();
+              if (convertAll) {
+                convertAll.disabled = false;
+                convertAll.innerHTML = '&#x26A1; Convert All';
+              }
+            }
+          });
+      }
+
+      document.body.addEventListener('click', function(e) {
+        var btn = e.target.closest('.convert-btn');
+        if (!btn) return;
+        var id = btn.dataset.id;
+
+        if (btn.classList.contains('done')) {
+          window.location.href = '/download/' + id;
+          return;
+        }
+
+        if (btn.classList.contains('error') || (!btn.classList.contains('converting') && !btn.classList.contains('done'))) {
+          fetch('/convert/' + id, { method: 'POST' });
+          btn.className = 'convert-btn converting';
+          btn.textContent = '';
+          startPolling();
+        }
+      });
+
+      document.getElementById('convert-all-btn').addEventListener('click', function() {
+        fetch('/convert', { method: 'POST' });
+        this.disabled = true;
+        this.innerHTML = '&#x26A1; Converting...';
+        startPolling();
+      });
+
+      // ── Global HTMX events ────────────────────────────
+
+      document.body.addEventListener('htmx:afterRequest', function(e) {
+        if (e.detail.pathInfo.requestPath === '/upload') {
+          fileInput.value = '';
+          switchFilter('all');
+        }
+      });
+
+      document.body.addEventListener('htmx:afterSwap', function(e) {
+        if (e.detail.target && e.detail.target.id === 'file-list') {
+          updateFileCount();
+          applyCurrentFilter();
+        }
+      });
+
+      function updateFileCount() {
+        const count = document.querySelectorAll('.file-entry').length;
+        const el = document.getElementById('file-count');
+        if (el) el.textContent = count + ' file' + (count !== 1 ? 's' : '');
+        const clearBtn = document.querySelector('.btn-danger');
+        if (clearBtn) clearBtn.disabled = count === 0;
+        const convertAll = document.getElementById('convert-all-btn');
+        if (convertAll) convertAll.disabled = count === 0;
+      }
+
+      let currentFilter = 'all';
+
+      function switchFilter(cat) {
+        currentFilter = cat;
+        document.querySelectorAll('.filter-btn').forEach(function(b) {
+          b.classList.toggle('active', b.dataset.filter === cat);
+        });
+        applyCurrentFilter();
+      }
+
+      function applyCurrentFilter() {
+        document.querySelectorAll('.file-entry').forEach(function(el) {
+          el.style.display = (currentFilter === 'all' || el.dataset.category === currentFilter) ? 'flex' : 'none';
+        });
+      }
+
+      document.querySelectorAll('.filter-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          if (this.disabled) {
+            showToast('Video and audio conversion coming soon');
+            return;
+          }
+          switchFilter(this.dataset.filter);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
