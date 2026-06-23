@@ -125,6 +125,18 @@
     </div>
   </div>
 
+  <!-- Convert All confirmation modal -->
+  <div id="convert-modal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-title">&#x26A1; Convert All Files?</p>
+      <p id="convert-modal-text" class="del-modal-text">Convert all image files?</p>
+      <div class="modal-actions">
+        <button id="convert-modal-cancel" class="btn btn-outline">Cancel</button>
+        <button id="convert-modal-confirm" class="btn btn-primary">Convert All</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div id="toast" class="toast"></div>
 
@@ -152,6 +164,10 @@
       const delText = document.getElementById('del-modal-text');
       const delCancel = document.getElementById('del-modal-cancel');
       const delConfirm = document.getElementById('del-modal-confirm');
+      const convertModal = document.getElementById('convert-modal');
+      const convertModalText = document.getElementById('convert-modal-text');
+      const convertModalCancel = document.getElementById('convert-modal-cancel');
+      const convertModalConfirm = document.getElementById('convert-modal-confirm');
       const toast = document.getElementById('toast');
       const tooltip = document.getElementById('tooltip');
 
@@ -344,6 +360,25 @@
 
       delModal.addEventListener('click', function(e) {
         if (e.target === this) { delModal.classList.remove('visible'); pendingDelId = ''; }
+      });
+
+      // ── Convert All confirm ───────────────────────────
+
+      convertModalConfirm.addEventListener('click', function() {
+        convertModal.classList.remove('visible');
+        const btn = document.getElementById('convert-all-btn');
+        fetch('/convert', { method: 'POST' });
+        btn.disabled = true;
+        btn.innerHTML = '&#x26A1; Converting...';
+        startPolling();
+      });
+
+      convertModalCancel.addEventListener('click', function() {
+        convertModal.classList.remove('visible');
+      });
+
+      convertModal.addEventListener('click', function(e) {
+        if (e.target === this) convertModal.classList.remove('visible');
       });
 
       // ── Toast ────────────────────────────────────────
@@ -666,10 +701,10 @@
       });
 
       document.getElementById('convert-all-btn').addEventListener('click', function() {
-        fetch('/convert', { method: 'POST' });
-        this.disabled = true;
-        this.innerHTML = '&#x26A1; Converting...';
-        startPolling();
+        const imageCount = document.querySelectorAll('.file-entry[data-category="image"]').length;
+        if (!imageCount) return;
+        convertModalText.textContent = 'Convert all ' + imageCount + ' image file' + (imageCount !== 1 ? 's' : '') + '?';
+        convertModal.classList.add('visible');
       });
 
       // ── Global HTMX events ────────────────────────────
