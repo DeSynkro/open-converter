@@ -10,6 +10,7 @@ FORMAT_EXT = {
     "PNG": ".png",
     "WebP": ".webp",
     "AVIF": ".avif",
+    "HEIC": ".heic",
     "BMP": ".bmp",
     "TIFF": ".tiff",
     "GIF": ".gif",

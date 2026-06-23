@@ -62,11 +62,12 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-IMAGE_FORMATS = ["JPEG", "PNG", "WebP", "AVIF", "BMP", "TIFF", "GIF", "QOI", "ICO"]
+IMAGE_FORMATS = ["JPEG", "PNG", "WebP", "AVIF", "HEIC", "BMP", "TIFF", "GIF", "QOI", "ICO"]
 
 EXT_TO_FORMAT = {
     ".jpg": "JPEG", ".jpeg": "JPEG",
     ".png": "PNG", ".webp": "WebP", ".avif": "AVIF",
+    ".heic": "HEIC", ".heif": "HEIC",
     ".bmp": "BMP", ".tiff": "TIFF", ".tif": "TIFF",
     ".gif": "GIF", ".qoi": "QOI", ".ico": "ICO",
 }
