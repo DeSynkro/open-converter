@@ -692,6 +692,7 @@ def _file_entry_html(f: dict, has_override: bool = False, conv_state: dict | Non
   <button class="{gear_class}" data-id="{f["id"]}" title="Conversion settings">&#x2699;</button>
   <button class="del-btn" data-id="{f["id"]}" title="Left‑click to confirm · Right‑click to remove">&#x1F5D1;</button>
   <button class="{conv_class}" data-id="{f["id"]}">{conv_icon}</button>
+  <div class="file-progress"><div class="file-progress-fill"></div></div>
 </div>"""
 
 

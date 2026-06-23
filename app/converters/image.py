@@ -19,6 +19,14 @@ FORMAT_EXT = {
 
 LOSSLESS_FORMATS = {"PNG", "BMP", "TIFF", "GIF", "QOI", "ICO"}
 
+async def _progress_pulse(file_id: str):
+    pct = 35
+    while pct < 85:
+        update_progress(file_id, pct)
+        pct += 10
+        await asyncio.sleep(1.5)
+
+
 async def convert(file_id: str, entry: dict, settings: dict):
     try:
         ext = Path(entry["filename"]).suffix
@@ -83,7 +91,9 @@ async def convert(file_id: str, entry: dict, settings: dict):
             stderr=asyncio.subprocess.PIPE,
         )
 
+        pulse = asyncio.create_task(_progress_pulse(file_id))
         _, stderr_data = await proc.communicate()
+        pulse.cancel()
 
         if proc.returncode != 0:
             err_text = stderr_data.decode("utf-8", errors="replace").strip()

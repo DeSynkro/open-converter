@@ -71,6 +71,7 @@
         <button class="gear-btn{{ ' edited' if has_ov else '' }}" data-id="{{ f['id'] }}" title="Conversion settings">&#x2699;</button>
         <button class="del-btn" data-id="{{ f['id'] }}" title="Left‑click to confirm · Right‑click to remove">&#x1F5D1;</button>
         <button class="{{ conv_class }}" data-id="{{ f['id'] }}">{{ conv_icon }}</button>
+        <div class="file-progress"><div class="file-progress-fill"></div></div>
       </div>
       {% endfor %}
     </div>
@@ -655,20 +656,39 @@
 
             keys.forEach(function(id) {
               var state = states[id];
-              var btn = document.querySelector('.convert-btn[data-id="' + id + '"]');
-              if (!btn) return;
+              var entry = document.querySelector('.file-entry[data-id="' + id + '"]');
+              if (!entry) return;
+              var btn = entry.querySelector('.convert-btn');
+
+              var prog = entry.querySelector('.file-progress');
+              var fill = prog ? prog.querySelector('.file-progress-fill') : null;
 
               if (state.status === 'running' || state.status === 'pending') {
                 allDone = false;
                 btn.className = 'convert-btn converting';
                 btn.textContent = '';
+                if (prog) prog.classList.add('active');
+                if (fill) fill.style.width = (state.progress || 0) + '%';
               } else if (state.status === 'done') {
                 btn.className = 'convert-btn done';
                 btn.innerHTML = '&#x2B07;';
+                if (fill) fill.style.width = '100%';
+                if (prog) {
+                  setTimeout(function() {
+                    prog.classList.remove('active');
+                    prog.classList.add('completing');
+                    setTimeout(function() {
+                      prog.classList.remove('completing');
+                      if (fill) fill.style.width = '0%';
+                    }, 500);
+                  }, 800);
+                }
               } else if (state.status === 'error') {
                 allDone = false;
                 btn.className = 'convert-btn error';
                 btn.innerHTML = '&#x25B6;';
+                if (prog) prog.classList.remove('active');
+                if (fill) fill.style.width = '0%';
                 showToast(state.error || 'Conversion failed');
               }
             });

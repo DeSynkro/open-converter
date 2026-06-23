@@ -218,6 +218,35 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.file-progress.active {
+  opacity: 1;
+}
+
+.file-progress.completing {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.file-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #14b8a6, #2dd4bf);
+  transition: width 0.3s ease;
 }
 
 .file-icon {
