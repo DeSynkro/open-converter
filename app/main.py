@@ -396,6 +396,17 @@ async def download_all_zip():
     )
 
 
+# ── Storage Tracker ────────────────────────────────────────
+
+@app.get("/storage")
+async def storage_usage():
+    def dir_size(p):
+        return sum(f.stat().st_size for f in p.rglob("*") if f.is_file())
+    uploads = dir_size(UPLOADS_DIR) if UPLOADS_DIR.exists() else 0
+    outputs = dir_size(CONV_OUTPUT_DIR) if CONV_OUTPUT_DIR.exists() else 0
+    return JSONResponse({"uploads": uploads, "outputs": outputs})
+
+
 # ── Audio Metadata Helper ──────────────────────────────────
 
 async def _get_audio_info(filepath: Path) -> dict:

@@ -75,6 +75,11 @@
       </div>
       {% endfor %}
     </div>
+
+    <div id="storage-bar" class="storage-bar">
+      <span id="storage-count">{{ files|length }} file{% if files|length != 1 %}s{% endif %}</span>
+      <span id="storage-tracker"></span>
+    </div>
   </main>
 
   <footer class="footer">
@@ -701,6 +706,7 @@
               }
             }
             updateDownloadAllBtn();
+            updateStorage();
           });
       }
 
@@ -739,6 +745,20 @@
         btn.disabled = document.querySelectorAll('.convert-btn.done').length === 0;
       }
 
+      function updateStorage() {
+        var el = document.getElementById('storage-tracker');
+        if (!el) return;
+        fetch('/storage')
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            function fmt(b) {
+              var kb = b / 1024;
+              return kb < 1024 ? kb.toFixed(1) + ' KB' : (kb / 1024).toFixed(1) + ' MB';
+            }
+            el.textContent = 'Uploads: ' + fmt(data.uploads) + ' | Outputs: ' + fmt(data.outputs);
+          });
+      }
+
       // ── Global HTMX events ────────────────────────────
 
       document.body.addEventListener('htmx:afterRequest', function(e) {
@@ -757,13 +777,17 @@
 
       function updateFileCount() {
         const count = document.querySelectorAll('.file-entry').length;
+        const text = count + ' file' + (count !== 1 ? 's' : '');
         const el = document.getElementById('file-count');
-        if (el) el.textContent = count + ' file' + (count !== 1 ? 's' : '');
+        if (el) el.textContent = text;
+        const sc = document.getElementById('storage-count');
+        if (sc) sc.textContent = text;
         const clearBtn = document.querySelector('.btn-danger');
         if (clearBtn) clearBtn.disabled = count === 0;
         const convertAll = document.getElementById('convert-all-btn');
         if (convertAll) convertAll.disabled = count === 0;
         updateDownloadAllBtn();
+        updateStorage();
       }
 
       let currentFilter = 'all';
@@ -793,6 +817,7 @@
       });
 
       updateDownloadAllBtn();
+      updateStorage();
     })();
   </script>
 </body>
