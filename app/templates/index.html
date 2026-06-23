@@ -63,7 +63,7 @@
       {% set conv_class = 'convert-btn' %}
       {% set conv_icon = '&#x25B6;'|safe %}
       {% endif %}
-      <div class="file-entry" data-id="{{ f['id'] }}" data-category="{{ f['category'] }}" data-name="{{ f['filename'] }}">
+      <div class="file-entry" draggable="true" data-id="{{ f['id'] }}" data-category="{{ f['category'] }}" data-name="{{ f['filename'] }}">
         <span class="file-icon">{{ '&#x1F5BC;'|safe if f['category'] == 'image' else '&#x1F3AC;'|safe if f['category'] == 'video' else '&#x1F3B5;'|safe if f['category'] == 'audio' else '&#x1F4C4;'|safe }}</span>
         <span class="file-name">{{ f['filename'] }}</span>
         <span class="file-size">{{ '%0.1f KB'|format(f['size'] / 1024) if f['size'] < 1048576 else '%0.1f MB'|format(f['size'] / 1048576) }}</span>
@@ -758,6 +758,76 @@
             el.textContent = 'Uploads: ' + fmt(data.uploads) + ' | Outputs: ' + fmt(data.outputs);
           });
       }
+
+      // ── Drag & Drop Reorder ────────────────────────────
+
+      var fileList = document.getElementById('file-list');
+      var dragSrcId = null;
+
+      fileList.addEventListener('dragstart', function(e) {
+        var entry = e.target.closest('.file-entry');
+        if (!entry) return;
+        dragSrcId = entry.dataset.id;
+        entry.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+
+      fileList.addEventListener('dragend', function(e) {
+        document.querySelectorAll('.file-entry.dragging').forEach(function(el) {
+          el.classList.remove('dragging');
+        });
+        document.querySelectorAll('.file-entry.drop-above, .file-entry.drop-below').forEach(function(el) {
+          el.classList.remove('drop-above', 'drop-below');
+        });
+      });
+
+      fileList.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        var entry = e.target.closest('.file-entry');
+        if (!entry || entry.dataset.id === dragSrcId) return;
+        var rect = entry.getBoundingClientRect();
+        var midY = rect.top + rect.height / 2;
+        var above = e.clientY < midY;
+        document.querySelectorAll('.file-entry.drop-above, .file-entry.drop-below').forEach(function(el) {
+          if (el !== entry) el.classList.remove('drop-above', 'drop-below');
+        });
+        entry.classList.toggle('drop-above', above);
+        entry.classList.toggle('drop-below', !above);
+      });
+
+      fileList.addEventListener('dragleave', function(e) {
+        var entry = e.target.closest('.file-entry');
+        if (entry) entry.classList.remove('drop-above', 'drop-below');
+      });
+
+      fileList.addEventListener('drop', function(e) {
+        e.preventDefault();
+        var target = e.target.closest('.file-entry');
+        if (!target || !dragSrcId || target.dataset.id === dragSrcId) return;
+
+        document.querySelectorAll('.file-entry.drop-above, .file-entry.drop-below').forEach(function(el) {
+          el.classList.remove('drop-above', 'drop-below');
+        });
+
+        var src = document.querySelector('.file-entry[data-id="' + dragSrcId + '"]');
+        if (!src) return;
+
+        var rect = target.getBoundingClientRect();
+        var midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) {
+          fileList.insertBefore(src, target);
+        } else {
+          fileList.insertBefore(src, target.nextSibling);
+        }
+        dragSrcId = null;
+
+        var ids = Array.from(fileList.querySelectorAll('.file-entry')).map(function(el) {
+          return el.dataset.id;
+        });
+        var fd = new FormData();
+        ids.forEach(function(id) { fd.append('order', id); });
+        fetch('/files/reorder', { method: 'PUT', body: fd });
+      });
 
       // ── Global HTMX events ────────────────────────────
 

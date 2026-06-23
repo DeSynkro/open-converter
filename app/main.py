@@ -396,6 +396,18 @@ async def download_all_zip():
     )
 
 
+# ── Reorder ─────────────────────────────────────────────────
+
+@app.put("/files/reorder")
+async def reorder_files(request: Request):
+    form = await request.form()
+    order = form.getlist("order")
+    entries = load_files()
+    ordered = sorted(entries, key=lambda e: order.index(e["id"]))
+    save_files(ordered)
+    return HTMLResponse("")
+
+
 # ── Storage Tracker ────────────────────────────────────────
 
 @app.get("/storage")
@@ -695,7 +707,7 @@ def _file_entry_html(f: dict, has_override: bool = False, conv_state: dict | Non
     else:
         conv_class = "convert-btn"
         conv_icon = "&#x25B6;"
-    return f"""<div class="file-entry" data-id="{f["id"]}" data-category="{cat}" data-name="{name}">
+    return f"""<div class="file-entry" draggable="true" data-id="{f["id"]}" data-category="{cat}" data-name="{name}">
   <span class="file-icon">{icon}</span>
   <span class="file-name">{f["filename"]}</span>
   <span class="file-size">{size_str}</span>
