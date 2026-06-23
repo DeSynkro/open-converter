@@ -1,6 +1,7 @@
 <p align="center">
-  <img src="app/static/banner.png" width="320" alt="banner">
+  <img src="app/static/Banner.png" width="320" alt="Banner">
 </p>
+
 
 <p align="center">
   A self-hosted, fully offline media converter with a WebUI.
