@@ -16,6 +16,7 @@ from .converters import (
     dispatch as start_conversion,
     get_all_statuses,
     get_status,
+    reconstruct_state,
 )
 from .metadata import get_dimensions, get_extended_metadata, get_metadata
 from .models import (
@@ -51,10 +52,13 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 async def dashboard(request: Request):
     files = load_files()
     overrides = load_overrides()
+    reconstruct_state()
+    conv_state = get_all_statuses()
     return templates.TemplateResponse(request, "index.html", {
         "request": request,
         "files": files,
         "overrides": overrides,
+        "conv_state": conv_state,
     })
 
 
@@ -86,7 +90,7 @@ async def upload_files(files: list[UploadFile] = File(...)):
         d = entry.model_dump()
         entries.append(d)
         has_ov = entry_id in overrides
-        html_parts.append(_file_entry_html(d, has_ov))
+        html_parts.append(_file_entry_html(d, has_ov, get_all_statuses()))
 
     save_files(entries)
     return HTMLResponse("".join(html_parts))
@@ -663,7 +667,7 @@ def _int_or_none(v) -> int | None:
 
 # ── File Entry HTML ────────────────────────────────────────
 
-def _file_entry_html(f: dict, has_override: bool = False) -> str:
+def _file_entry_html(f: dict, has_override: bool = False, conv_state: dict | None = None) -> str:
     icon = _category_icon(f["category"])
     size_kb = f["size"] / 1024
     if size_kb < 1024:
@@ -673,6 +677,13 @@ def _file_entry_html(f: dict, has_override: bool = False) -> str:
     cat = f["category"]
     name = f["filename"].replace('"', '&quot;')
     gear_class = "gear-btn" + (" edited" if has_override else "")
+    state = (conv_state or {}).get(f["id"], {})
+    if state.get("status") == "done":
+        conv_class = "convert-btn done"
+        conv_icon = "&#x2B07;"
+    else:
+        conv_class = "convert-btn"
+        conv_icon = "&#x25B6;"
     return f"""<div class="file-entry" data-id="{f["id"]}" data-category="{cat}" data-name="{name}">
   <span class="file-icon">{icon}</span>
   <span class="file-name">{f["filename"]}</span>
@@ -680,7 +691,7 @@ def _file_entry_html(f: dict, has_override: bool = False) -> str:
   <button class="info-btn" data-id="{f["id"]}" title="Show metadata">&#x24D8;</button>
   <button class="{gear_class}" data-id="{f["id"]}" title="Conversion settings">&#x2699;</button>
   <button class="del-btn" data-id="{f["id"]}" title="Left‑click to confirm · Right‑click to remove">&#x1F5D1;</button>
-  <button class="convert-btn" data-id="{f["id"]}" title="Convert this file">&#x25B6;</button>
+  <button class="{conv_class}" data-id="{f["id"]}">{conv_icon}</button>
 </div>"""
 
 

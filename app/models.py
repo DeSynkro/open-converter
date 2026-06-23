@@ -23,6 +23,7 @@ class GroupSettings(BaseModel):
     preserve_transparency: bool = True
     use_scale: bool = False
     scale_pct: int | None = None
+    aspect_locked: bool = True
     file_size_goal: bool = False
     file_size_value: int | None = None
     file_size_unit: str = "MB"
@@ -41,6 +42,7 @@ class FileOverride(BaseModel):
     preserve_transparency: bool | None = None
     use_scale: bool | None = None
     scale_pct: int | None = None
+    aspect_locked: bool | None = None
     file_size_goal: bool | None = None
     file_size_value: int | None = None
     file_size_unit: str | None = None
@@ -82,7 +84,25 @@ AUDIO_FORMATS = ["MP3", "AAC", "FLAC", "OGG", "WAV", "Opus", "M4A", "ALAC", "AIF
 LOSSLESS_AUDIO = {"FLAC", "WAV", "ALAC", "AIFF"}
 
 DEFAULT_SETTINGS = {
-    "image": {"output_format": "JPEG", "quality": 100, "crf": None, "bitrate": None, "max_width": None, "max_height": None},
-    "video": {"output_format": "mp4", "quality": 70, "crf": 23, "bitrate": None, "max_width": None, "max_height": None},
-    "audio": {"output_format": "MP3", "quality": 80, "crf": None, "bitrate": None, "max_width": None, "max_height": None},
+    "image": {
+        "output_format": "JPEG", "quality": 100, "crf": None, "bitrate": None,
+        "max_width": None, "max_height": None, "strip_metadata": False,
+        "preserve_transparency": True, "use_scale": False, "scale_pct": None,
+        "aspect_locked": True, "file_size_goal": False, "file_size_value": None,
+        "file_size_unit": "MB",
+    },
+    "video": {
+        "output_format": "mp4", "quality": 70, "crf": 23, "bitrate": None,
+        "max_width": None, "max_height": None, "strip_metadata": False,
+        "preserve_transparency": True, "use_scale": False, "scale_pct": None,
+        "aspect_locked": True, "file_size_goal": False, "file_size_value": None,
+        "file_size_unit": "MB",
+    },
+    "audio": {
+        "output_format": "MP3", "quality": 80, "crf": None, "bitrate": None,
+        "max_width": None, "max_height": None, "strip_metadata": False,
+        "preserve_transparency": True, "use_scale": False, "scale_pct": None,
+        "aspect_locked": True, "file_size_goal": False, "file_size_value": None,
+        "file_size_unit": "MB",
+    },
 }

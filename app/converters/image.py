@@ -1,5 +1,5 @@
 import asyncio
-import time
+import uuid
 from pathlib import Path
 
 from ..storage import UPLOADS_DIR
@@ -31,7 +31,7 @@ async def convert(file_id: str, entry: dict, settings: dict):
 
         output_format = settings.get("output_format", "JPEG")
         output_ext = FORMAT_EXT.get(output_format, ".jpg")
-        output_path = OUTPUT_DIR / f"{file_id}_{int(time.time())}{output_ext}"
+        output_path = OUTPUT_DIR / f"{file_id}_{uuid.uuid4().hex[:12]}{output_ext}"
 
         update_progress(file_id, 20)
 
@@ -46,9 +46,10 @@ async def convert(file_id: str, entry: dict, settings: dict):
         if not settings.get("preserve_transparency", True):
             cmd.extend(["-alpha", "off"])
 
-        quality = settings.get("quality")
-        if quality is not None and output_format not in LOSSLESS_FORMATS:
-            cmd.extend(["-quality", str(quality)])
+        if settings.get("quality") is not None and output_format not in LOSSLESS_FORMATS:
+            cmd.extend(["-quality", str(settings["quality"])])
+
+        cmd.append("-auto-orient")
 
         if settings.get("use_scale"):
             scale_pct = settings.get("scale_pct")
@@ -71,7 +72,6 @@ async def convert(file_id: str, entry: dict, settings: dict):
             if value:
                 if output_format == "JPEG":
                     cmd.extend(["-define", f"jpeg:extent={value}{unit}"])
-
 
         cmd.append(str(output_path))
 

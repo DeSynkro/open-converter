@@ -1,12 +1,27 @@
-# Open Converter
+<p align="center">
+  <img src="app/static/logo.png" width="64" alt="logo">
+</p>
 
-[![Alpha](https://img.shields.io/badge/status-alpha-orange)](https://codeberg.org/DeSynkro/open-converter)
+<h1 align="center">Open Converter</h1>
 
-A self-hosted, fully offline media converter with a dark WebUI. Runs entirely in Docker with no host dependencies.
+<p align="center">
+  A self-hosted, fully offline media converter with a WebUI.
+  Runs entirely in Docker with no host dependencies.
+</p>
 
-Built by [DeSynkro](https://desynkro.com) with assistance from [Opencode](https://opencode.ai).
+<p align="center">
+  <a href="https://codeberg.org/DeSynkro/open-converter"><img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="Status: Alpha"></a> <a href="https://codeberg.org/DeSynkro/open-converter/src/branch/main/LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
+</p>
 
-Made with love for the community, and a special thank you to everyone who was welcoming and kind, it means a lot.
+<p align="center">
+  Built by <a href="https://desynkro.com">DeSynkro</a>
+  with assistance from <a href="https://opencode.ai">Opencode</a>.
+</p>
+
+<p align="center">
+  Made with love for the community! Thank you to everyone who was
+  welcoming and kind ♥️
+</p>
 
 ## Requirements
 
@@ -31,12 +46,18 @@ git pull
 docker compose up --build -d
 ```
 
-> **Alpha notice.** This is an early alpha release. Only image conversion is available. Video and audio conversion are locked and will be added in a future release. Breaking changes to settings storage and configuration may occur between versions.
+> **Alpha notice.** This is an early alpha release. Only image conversion is available. Video and audio conversion are locked and will be added in a future release.
 
 ## Screenshots
 
-[![Dashboard](app/static/screenshots/dashboard.webp)](app/static/screenshots/dashboard.webp)
-[![Settings](app/static/screenshots/settings.webp)](app/static/screenshots/settings.webp)
+<p align="center">
+  <a href="https://codeberg.org/DeSynkro/open-converter/raw/branch/main/app/static/screenshots/dashboard.webp" target="_blank">
+    <img src="app/static/screenshots/dashboard.webp" width="48%" alt="Dashboard">
+  </a>
+  <a href="https://codeberg.org/DeSynkro/open-converter/raw/branch/main/app/static/screenshots/settings.webp" target="_blank">
+    <img src="app/static/screenshots/settings.webp" width="48%" alt="Settings">
+  </a>
+</p>
 
 ## Why this exists
 
@@ -56,7 +77,7 @@ This project flips that. You run it on your own machine, your own network, your 
 - **File size goal** — target a specific output file size (JPEG only in alpha)
 - **Preserve transparency** — keep alpha channel for PNG, WebP, TIFF, GIF; flatten against white when unchecked
 - **Strip metadata** — remove EXIF, tags, and other metadata from output files
-- **Dark WebUI** — teal/cyan theme built with FastAPI, Jinja2, and HTMX (no JavaScript framework)
+- **WebUI** — teal theme built with FastAPI, Jinja2, and HTMX (no JavaScript framework)
 - **Sequential processing** — one file at a time to prevent memory exhaustion
 - One `docker compose up --build -d` and done
 
@@ -147,6 +168,12 @@ GNU General Public License v3.0 or later. See [LICENSE](LICENSE).
 
 - Built by [DeSynkro](https://desynkro.com)
 - Assisted by [Opencode](https://opencode.ai)
-- Thank you to the self-hosted community for being welcoming
+- Thank you to everyone who was welcoming and kind, it means a lot 😄️
 
-[![DeSynkro](app/static/logo.png)](https://desynkro.com)
+<p align="center">
+  <a href="https://desynkro.com" target="_blank">
+    <img src="app/static/desynkro.png" width="240"
+         alt="DeSynkro"
+         style="background:#0d1117;border-radius:8px;padding:8px 14px">
+  </a>
+</p>

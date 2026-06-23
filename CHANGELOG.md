@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.1 — Alpha
+
+### Added
+- Converted files now show the download button immediately after page refresh
+- Hover tooltips on the convert button show whether it will convert, retry, or download
+- Output filenames now use a unique identifier to prevent collisions
+
+### Fixed
+- Photos from phones and cameras no longer come out sideways after conversion
+- Batch converting many files no longer risks running out of memory (files are processed one at a time)
+- Old output files are removed before re-converting a file
+
+### Changed
+- Improved internal defaults for all image categories
+- Various reliability improvements and code cleanup
+
 ## 0.1.0 — Alpha
 
 ### Added
