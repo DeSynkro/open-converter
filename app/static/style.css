@@ -420,6 +420,20 @@ body {
   cursor: not-allowed;
 }
 
+.btn-download {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-download:hover {
+  background: #2563eb;
+}
+
+.btn-download:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .btn-danger {
   background: var(--danger);
   color: #fff;

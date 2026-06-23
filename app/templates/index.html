@@ -45,6 +45,7 @@
       <div class="bar-actions">
         <button class="btn btn-sm btn-outline" id="settings-btn">&#x2699; Conversion Settings</button>
         <button class="btn btn-sm btn-primary" id="convert-all-btn" {% if not files %}disabled{% endif %}>&#x26A1; Convert All</button>
+        <button class="btn btn-sm btn-download" id="download-all-btn" disabled>&#x2B07; Download All</button>
         <button class="btn btn-sm btn-danger" hx-delete="/files" hx-target="#file-list" hx-swap="outerHTML" {% if not files %}disabled{% endif %}>
           &#x1F5D1; Clear All
         </button>
@@ -679,6 +680,7 @@
                 convertAll.innerHTML = '&#x26A1; Convert All';
               }
             }
+            updateDownloadAllBtn();
           });
       }
 
@@ -707,6 +709,16 @@
         convertModal.classList.add('visible');
       });
 
+      document.getElementById('download-all-btn').addEventListener('click', function() {
+        window.location.href = '/download';
+      });
+
+      function updateDownloadAllBtn() {
+        const btn = document.getElementById('download-all-btn');
+        if (!btn) return;
+        btn.disabled = document.querySelectorAll('.convert-btn.done').length === 0;
+      }
+
       // ── Global HTMX events ────────────────────────────
 
       document.body.addEventListener('htmx:afterRequest', function(e) {
@@ -731,6 +743,7 @@
         if (clearBtn) clearBtn.disabled = count === 0;
         const convertAll = document.getElementById('convert-all-btn');
         if (convertAll) convertAll.disabled = count === 0;
+        updateDownloadAllBtn();
       }
 
       let currentFilter = 'all';
@@ -758,6 +771,8 @@
           switchFilter(this.dataset.filter);
         });
       });
+
+      updateDownloadAllBtn();
     })();
   </script>
 </body>
