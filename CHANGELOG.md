@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.0 — Alpha
+
+### Added
+- HEIC/HEIF input support (iPhone photos) — libheif-dev + format list
+- Drag-and-drop file reorder with teal insertion-line indicator
+- Storage tracker showing upload/output disk usage
+- Download All as ZIP button
+- Convert All confirmation modal
+- Progress bars per file entry (3px animated bar)
+- Metadata modal scrollable when EXIF is lengthy
+- Banner logo replacing text header
+
+### Fixed
+- Drag-and-drop not working after uploading new files (event delegation fix)
+- GIF to JPEG conversion failing (first-frame selector now applies to GIF too)
+- Duplicate filenames silently overwriting each other in ZIP download
+- Progress bar too slow for fast conversions (pulse 1.5s→0.1s, pre-subprocess 50%)
+- Poll interval too slow to catch quick conversions (1500ms→500ms)
+- UI showing stale state on page refresh mid-conversion (converting class + auto-poll)
+
+### Changed
+- Drop indicator replaced entire-entry border with thin teal line at exact insertion point
+
 ## 0.1.1 — Alpha
 
 ### Added

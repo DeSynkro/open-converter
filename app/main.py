@@ -378,6 +378,7 @@ async def download_all_zip():
     all_states = get_all_statuses()
 
     buf = io.BytesIO()
+    seen_names = {}
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for entry in entries:
             fid = entry["id"]
@@ -386,7 +387,13 @@ async def download_all_zip():
                 p = Path(state["output_path"])
                 if p.exists():
                     orig_stem = Path(entry["filename"]).stem
-                    zf.write(str(p), f"{orig_stem}{p.suffix}")
+                    arcname = f"{orig_stem}{p.suffix}"
+                    if arcname in seen_names:
+                        seen_names[arcname] += 1
+                        arcname = f"{orig_stem}_{seen_names[arcname]}{p.suffix}"
+                    else:
+                        seen_names[arcname] = 1
+                    zf.write(str(p), arcname)
 
     buf.seek(0)
     return StreamingResponse(
@@ -701,9 +708,13 @@ def _file_entry_html(f: dict, has_override: bool = False, conv_state: dict | Non
     name = f["filename"].replace('"', '&quot;')
     gear_class = "gear-btn" + (" edited" if has_override else "")
     state = (conv_state or {}).get(f["id"], {})
-    if state.get("status") == "done":
+    st = state.get("status")
+    if st == "done":
         conv_class = "convert-btn done"
         conv_icon = "&#x2B07;"
+    elif st in ("running", "pending"):
+        conv_class = "convert-btn converting"
+        conv_icon = ""
     else:
         conv_class = "convert-btn"
         conv_icon = "&#x25B6;"

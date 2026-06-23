@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="app/static/logo.png" width="64" alt="logo">
+  <img src="app/static/banner.png" width="320" alt="banner">
 </p>
-
-<h1 align="center">Open Converter</h1>
 
 <p align="center">
   A self-hosted, fully offline media converter with a WebUI.

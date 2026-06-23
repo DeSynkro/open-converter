@@ -21,11 +21,11 @@ FORMAT_EXT = {
 LOSSLESS_FORMATS = {"PNG", "BMP", "TIFF", "GIF", "QOI", "ICO"}
 
 async def _progress_pulse(file_id: str):
-    pct = 35
+    pct = 55
     while pct < 85:
         update_progress(file_id, pct)
-        pct += 10
-        await asyncio.sleep(1.5)
+        pct += 5
+        await asyncio.sleep(0.1)
 
 
 async def convert(file_id: str, entry: dict, settings: dict):
@@ -45,7 +45,7 @@ async def convert(file_id: str, entry: dict, settings: dict):
         update_progress(file_id, 20)
 
         input_arg = str(input_path)
-        if ext.lower() == ".ico" and output_format != "ICO":
+        if ext.lower() in (".ico", ".gif") and output_format not in ("ICO", "GIF"):
             input_arg += "[0]"
         cmd = ["convert", input_arg]
 
@@ -84,7 +84,7 @@ async def convert(file_id: str, entry: dict, settings: dict):
 
         cmd.append(str(output_path))
 
-        update_progress(file_id, 30)
+        update_progress(file_id, 50)
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,

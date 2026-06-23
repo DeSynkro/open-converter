@@ -11,9 +11,7 @@
 <body>
   <header class="header">
     <div class="header-inner">
-      <img src="/static/logo.png" alt="Open Converter" class="logo">
-      <h1>Open Converter</h1>
-      <p class="subtitle">Convert images, video, and audio (α), fully offline, no limits</p>
+      <img src="/static/Banner.png" alt="Open Converter" class="banner">
     </div>
   </header>
 
@@ -56,9 +54,13 @@
       {% for f in files %}
       {% set has_ov = f['id'] in overrides %}
       {% set state = conv_state.get(f['id'], {}) %}
-      {% if state.get('status') == 'done' %}
+      {% set st = state.get('status') %}
+      {% if st == 'done' %}
       {% set conv_class = 'convert-btn done' %}
       {% set conv_icon = '&#x2B07;'|safe %}
+      {% elif st in ('running', 'pending') %}
+      {% set conv_class = 'convert-btn converting' %}
+      {% set conv_icon = '' %}
       {% else %}
       {% set conv_class = 'convert-btn' %}
       {% set conv_icon = '&#x25B6;'|safe %}
@@ -83,7 +85,7 @@
   </main>
 
   <footer class="footer">
-    BUILT WITH <span class="heart">&hearts;</span> BY <a href="https://desynkro.com" target="_blank">DESYNKRO</a> · v0.1.1-alpha
+    BUILT WITH <span class="heart">&hearts;</span> BY <a href="https://desynkro.com" target="_blank">DESYNKRO</a> · v0.2.0-alpha
   </footer>
 
   <!-- Duplicate modal -->
@@ -641,7 +643,7 @@
       function startPolling() {
         if (pollTimer) return;
         poll();
-        pollTimer = setInterval(poll, 1500);
+        pollTimer = setInterval(poll, 500);
       }
 
       function stopPolling() {
@@ -761,10 +763,9 @@
 
       // ── Drag & Drop Reorder ────────────────────────────
 
-      var fileList = document.getElementById('file-list');
       var dragSrcId = null;
 
-      fileList.addEventListener('dragstart', function(e) {
+      document.body.addEventListener('dragstart', function(e) {
         var entry = e.target.closest('.file-entry');
         if (!entry) return;
         dragSrcId = entry.dataset.id;
@@ -772,7 +773,7 @@
         e.dataTransfer.effectAllowed = 'move';
       });
 
-      fileList.addEventListener('dragend', function(e) {
+      document.body.addEventListener('dragend', function(e) {
         document.querySelectorAll('.file-entry.dragging').forEach(function(el) {
           el.classList.remove('dragging');
         });
@@ -781,7 +782,7 @@
         });
       });
 
-      fileList.addEventListener('dragover', function(e) {
+      document.body.addEventListener('dragover', function(e) {
         e.preventDefault();
         var entry = e.target.closest('.file-entry');
         if (!entry || entry.dataset.id === dragSrcId) return;
@@ -795,13 +796,15 @@
         entry.classList.toggle('drop-below', !above);
       });
 
-      fileList.addEventListener('dragleave', function(e) {
+      document.body.addEventListener('dragleave', function(e) {
         var entry = e.target.closest('.file-entry');
         if (entry) entry.classList.remove('drop-above', 'drop-below');
       });
 
-      fileList.addEventListener('drop', function(e) {
+      document.body.addEventListener('drop', function(e) {
         e.preventDefault();
+        var fl = document.getElementById('file-list');
+        if (!fl) return;
         var target = e.target.closest('.file-entry');
         if (!target || !dragSrcId || target.dataset.id === dragSrcId) return;
 
@@ -815,13 +818,13 @@
         var rect = target.getBoundingClientRect();
         var midY = rect.top + rect.height / 2;
         if (e.clientY < midY) {
-          fileList.insertBefore(src, target);
+          fl.insertBefore(src, target);
         } else {
-          fileList.insertBefore(src, target.nextSibling);
+          fl.insertBefore(src, target.nextSibling);
         }
         dragSrcId = null;
 
-        var ids = Array.from(fileList.querySelectorAll('.file-entry')).map(function(el) {
+        var ids = Array.from(fl.querySelectorAll('.file-entry')).map(function(el) {
           return el.dataset.id;
         });
         var fd = new FormData();
@@ -888,6 +891,9 @@
 
       updateDownloadAllBtn();
       updateStorage();
+      if (document.querySelector('.convert-btn.converting')) {
+        startPolling();
+      }
     })();
   </script>
 </body>
