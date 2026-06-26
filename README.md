@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://codeberg.org/DeSynkro/open-converter"><img src="https://img.shields.io/badge/status-alpha-orange.svg" alt="Status: Alpha"></a> <a href="https://codeberg.org/DeSynkro/open-converter/src/branch/main/LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
+  <a href="https://codeberg.org/DeSynkro/open-converter"><img src="https://img.shields.io/badge/status-beta-blue.svg" alt="Status: Beta"></a> <a href="https://codeberg.org/DeSynkro/open-converter/src/branch/main/LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
 </p>
 
 <p align="center">
@@ -45,7 +45,7 @@ git pull
 docker compose up --build -d
 ```
 
-> **Alpha notice.** This is an early alpha release. Only image conversion is available. Video and audio conversion are planned for a future release.
+> **Beta notice.** Image and audio conversion are available. Video conversion is planned for a future release.
 
 ## Screenshots
 
@@ -74,7 +74,7 @@ This project flips that. You run it on your own machine, your own network, your 
 - **Per-file overrides** — override conversion settings for individual files without affecting the group defaults
 - **Aspect ratio lock** — toggle lock to preserve original aspect ratio during resize, or unlock for exact dimensions
 - **DPI control** — set output DPI for print-ready files; original DPI auto-detected on per-file settings
-- **File size goal** — target a specific output file size (JPEG only in alpha)
+- **File size goal** — target a specific output file size (JPEG only)
 - **Preserve transparency** — keep alpha channel for PNG, WebP, TIFF, GIF; flatten against white when unchecked
 - **Strip metadata** — remove EXIF, tags, and other metadata from output files
 - **WebUI** — teal theme built with FastAPI, Jinja2, and HTMX (no JavaScript framework)
@@ -100,7 +100,7 @@ HTMX, fonts, and all assets are served directly from the app itself. No CDN, ana
 | Frontend | HTMX + Jinja2 (no JavaScript framework) |
 | Styling | CSS with dark teal/cyan theme |
 | Image conversion | ImageMagick |
-| Audio conversion | ffmpeg (planned) |
+| Audio conversion | ffmpeg (11 formats) |
 | Video conversion | ffmpeg (planned) |
 | Container | Docker / Docker Compose (single container) |
 | Persistence | Plain files on disk + JSON |

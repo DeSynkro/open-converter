@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 — Beta
+
+### Added
+- Audio converter rebuilt from scratch: 11 formats (MP3, AAC, FLAC, OGG, WAV, Opus, M4A, ALAC, AIFF, AC3, WMA)
+- Audio group settings tab alongside Images tab
+- Per-file audio settings modal with auto-fill for sample rate, bitrate, channels, duration
+- Quality slider (1-100) maps linearly to format-specific bitrate ranges
+- Manual bitrate toggle with plain kbps input
+- Lossless formats (FLAC, WAV, ALAC, AIFF) disable quality slider
+- Sample rate dropdown with high-rate warning hint
+- Channels dropdown (Default / Mono / Stereo)
+- Trim controls with auto-filled end time
+- Bitrate ceiling clamping, scales max bitrate by sample rate and channels to prevent ffmpeg rejection
+- Friendly error messages for sample rate and bitrate failures
+- OGG file recognition fix (application/ogg MIME type)
+
+### Fixed
+- Convert All stuck on "Converting..." when a file errors out
+- Toast repeatedly resetting on failed conversions
+- High sample rates / mono + low sample rate causing silent ffmpeg failures
+- File entries squishing in the UI (flex-shrink: 0)
+
 ## 0.3.0 — Alpha
 
 ### Added
