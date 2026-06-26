@@ -67,7 +67,8 @@ async def convert(file_id: str, entry: dict, settings: dict):
             cmd.extend(["-map_metadata", "-1"])
 
         if settings.get("manual_bitrate") and settings.get("bitrate"):
-            cmd.extend(["-b:a", settings["bitrate"]])
+            br_val = settings["bitrate"].rstrip("kK")
+            cmd.extend(["-b:a", f"{br_val}k"])
         elif output_format not in LOSSLESS_FORMATS:
             quality = settings.get("quality", 100)
             br = _quality_to_bitrate(output_format, quality)

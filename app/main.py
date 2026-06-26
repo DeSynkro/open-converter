@@ -233,8 +233,7 @@ async def file_settings(file_id: str):
             if dur:
                 orig_duration = float(dur)
             if "bit_rate" in info and not merged.get("manual_bitrate"):
-                br_kbps = int(info["bit_rate"]) // 1000
-                merged["bitrate"] = f"{br_kbps}k"
+                merged["bitrate"] = str(int(info["bit_rate"]) // 1000)
 
     return HTMLResponse(_settings_form_html(cat, merged, is_group=False, file_id=file_id, filename=entry["filename"], orig_w=ow, orig_h=oh, orig_dpi=orig_dpi, orig_sample_rate=orig_sample_rate, orig_channels=orig_channels, orig_duration=orig_duration))
 
@@ -477,11 +476,11 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
     aspect_locked = values.get("aspect_locked", True)
     dpi = values.get("dpi", "")
     manual_bitrate = values.get("manual_bitrate", False)
-    bitrate = values.get("bitrate", "")
-    sample_rate = values.get("sample_rate", "")
-    channels = values.get("channels", "")
-    start_time = values.get("start_time", "")
-    end_time = values.get("end_time", "")
+    bitrate = values.get("bitrate", "") or ""
+    sample_rate = values.get("sample_rate", "") or ""
+    channels = values.get("channels", "") or ""
+    start_time = values.get("start_time", "") or ""
+    end_time = values.get("end_time", "") or ""
 
     formats = _format_options(category)
     format_options = "".join(
@@ -526,7 +525,10 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
     </div>
     <div class="settings-field" style="display:{mb_display}">
       <label class="settings-label">Bitrate</label>
-      <input type="text" class="settings-input" name="bitrate" value="{bitrate}" placeholder="e.g. 192k">
+      <div class="settings-inline">
+        <input type="text" class="settings-input" name="bitrate" value="{bitrate}" placeholder="e.g. 192">
+        <span class="settings-res-x">kbps</span>
+      </div>
     </div>"""
 
     # Sample rate (audio only)

@@ -576,11 +576,16 @@
       function wireManualBitrate() {
         var cb = settingsBody.querySelector('[name="manual_bitrate"]');
         if (!cb) return;
-        var targetField = cb.closest('.settings-field').nextElementSibling;
-        if (!targetField) return;
-        cb.addEventListener('change', function() {
-          targetField.style.display = this.checked ? 'block' : 'none';
-        });
+        var cbField = cb.closest('.settings-field');
+        var qualityField = cbField.previousElementSibling;
+        var bitrateField = cbField.nextElementSibling;
+        if (!qualityField || !bitrateField) return;
+        function toggle() {
+          qualityField.style.display = this.checked ? 'none' : 'block';
+          bitrateField.style.display = this.checked ? 'block' : 'none';
+        }
+        cb.addEventListener('change', toggle);
+        toggle.call(cb);
       }
 
       function wireTrim() {
