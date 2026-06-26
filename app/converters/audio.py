@@ -40,6 +40,8 @@ def _user_error(stderr: str) -> str:
     lower = stderr.lower()
     if "sample rate" in lower:
         return "Conversion failed. High sample rates (96000/192000 Hz) may fail with lossy formats."
+    if "bitrate" in lower:
+        return "Conversion failed. Bitrate too high for this format at the selected sample rate and channels. Mono and low sample rates need less bitrate - try lowering quality or using Stereo."
     return f"Conversion failed:\n{stderr[:300]}"
 
 
