@@ -546,6 +546,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
     <div class="settings-field">
       <label class="settings-label">Sample Rate</label>
       <select class="settings-select" name="sample_rate">{sr_opts}</select>
+      <span class="settings-hint">High rates (96000/192000 Hz) may fail with lossy formats</span>
     </div>"""
 
     # Channels (audio only)

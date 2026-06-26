@@ -36,6 +36,13 @@ async def _progress_pulse(file_id: str):
         await asyncio.sleep(0.5)
 
 
+def _user_error(stderr: str) -> str:
+    lower = stderr.lower()
+    if "sample rate" in lower:
+        return "Conversion failed. High sample rates (96000/192000 Hz) may fail with lossy formats."
+    return f"Conversion failed:\n{stderr[:300]}"
+
+
 def _quality_to_bitrate(fmt: str, quality: int) -> int:
     if fmt in LOSSLESS_FORMATS or fmt not in BITRATE_RANGES:
         return 0
@@ -111,7 +118,7 @@ async def convert(file_id: str, entry: dict, settings: dict):
 
         if proc.returncode != 0:
             err_text = stderr_data.decode("utf-8", errors="replace").strip()
-            raise RuntimeError(err_text or "ffmpeg failed")
+            raise RuntimeError(_user_error(err_text) or "ffmpeg failed")
 
         if not output_path.exists():
             raise RuntimeError("Output file was not created")
