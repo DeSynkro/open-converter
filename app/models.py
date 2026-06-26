@@ -57,6 +57,8 @@ def categorize(mime: str) -> str:
         return "video"
     if mime.startswith("audio/"):
         return "audio"
+    if mime == "application/ogg":
+        return "audio"
     return "other"
 
 
