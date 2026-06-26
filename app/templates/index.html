@@ -687,6 +687,8 @@
         }
       }
 
+      var shownErrors = {};
+
       function poll() {
         fetch('/convert/status')
           .then(function(r) { return r.json(); })
@@ -725,12 +727,14 @@
                   }, 800);
                 }
               } else if (state.status === 'error') {
-                allDone = false;
                 btn.className = 'convert-btn error';
                 btn.innerHTML = '&#x25B6;';
                 if (prog) prog.classList.remove('active');
                 if (fill) fill.style.width = '0%';
-                showToast(state.error || 'Conversion failed');
+                if (shownErrors[id] !== state.error) {
+                  shownErrors[id] = state.error;
+                  showToast(state.error || 'Conversion failed');
+                }
               }
             });
 
