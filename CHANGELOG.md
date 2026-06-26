@@ -1,9 +1,21 @@
 # Changelog
 
+## 0.3.0 — Alpha
+
+### Added
+- DPI support! Set dots per inch for output (JPEG, PNG, TIFF)
+- Original DPI auto-detected and pre-filled on per-file settings
+- DPI field in both group-level and per-file override settings
+
+### Changed
+- Audio converter removed entirely; video converter stubs removed
+- Cleaned up all audio/video code from endpoints, models, and templates
+- Both will be rebuilt from scratch in a future release
+
 ## 0.2.0 — Alpha
 
 ### Added
-- HEIC/HEIF input support (iPhone photos) — libheif-dev + format list
+- HEIC/HEIF input support (iPhone photos) libheif-dev + format list
 - Drag-and-drop file reorder with teal insertion-line indicator
 - Storage tracker showing upload/output disk usage
 - Download All as ZIP button

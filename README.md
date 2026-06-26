@@ -45,7 +45,7 @@ git pull
 docker compose up --build -d
 ```
 
-> **Alpha notice.** This is an early alpha release. Only image conversion is available. Video and audio conversion are locked and will be added in a future release.
+> **Alpha notice.** This is an early alpha release. Only image conversion is available. Video and audio conversion are planned for a future release.
 
 ## Screenshots
 
@@ -73,6 +73,7 @@ This project flips that. You run it on your own machine, your own network, your 
 - **Drag-and-drop upload** — files enter only through the WebUI, auto-categorized into Images, Videos, and Audio
 - **Per-file overrides** — override conversion settings for individual files without affecting the group defaults
 - **Aspect ratio lock** — toggle lock to preserve original aspect ratio during resize, or unlock for exact dimensions
+- **DPI control** — set output DPI for print-ready files; original DPI auto-detected on per-file settings
 - **File size goal** — target a specific output file size (JPEG only in alpha)
 - **Preserve transparency** — keep alpha channel for PNG, WebP, TIFF, GIF; flatten against white when unchecked
 - **Strip metadata** — remove EXIF, tags, and other metadata from output files
@@ -99,8 +100,8 @@ HTMX, fonts, and all assets are served directly from the app itself. No CDN, ana
 | Frontend | HTMX + Jinja2 (no JavaScript framework) |
 | Styling | CSS with dark teal/cyan theme |
 | Image conversion | ImageMagick |
-| Audio conversion | ffmpeg (locked in alpha) |
-| Video conversion | ffmpeg (locked in alpha) |
+| Audio conversion | ffmpeg (planned) |
+| Video conversion | ffmpeg (planned) |
 | Container | Docker / Docker Compose (single container) |
 | Persistence | Plain files on disk + JSON |
 
@@ -123,7 +124,6 @@ HTMX, fonts, and all assets are served directly from the app itself. No CDN, ana
 │   ├── converters/
 │   │   ├── __init__.py     Shared conversion state and dispatch
 │   │   ├── image.py        ImageMagick-based image converter
-│   │   └── audio.py        ffmpeg-based audio converter (locked)
 │   ├── templates/
 │   │   └── index.html      Single-page WebUI
 │   └── static/
