@@ -20,11 +20,8 @@ from .converters import (
 )
 from .metadata import get_dimensions, get_extended_metadata, get_metadata
 from .models import (
-    AUDIO_FORMATS,
     EXT_TO_FORMAT,
     IMAGE_FORMATS,
-    LOSSLESS_AUDIO,
-    VIDEO_FORMATS,
     FileEntry,
     categorize,
     now_iso,
@@ -211,27 +208,14 @@ async def file_settings(file_id: str):
             if val is not None:
                 merged[key] = val
 
-    ow, oh, duration_secs = None, None, None
+    ow, oh = None, None
     ext = Path(entry["filename"]).suffix
     filepath = UPLOADS_DIR / f"{entry['id']}{ext}"
     if filepath.exists():
         if cat in ("image", "video"):
             ow, oh = get_dimensions(filepath, entry["mime_type"])
-        elif cat == "audio":
-            info = await _get_audio_info(filepath)
-            dur_str = info.get("duration")
-            if dur_str:
-                duration_secs = float(dur_str)
-            if "bit_rate" in info and override.get("bitrate") is None:
-                br_kbps = int(info["bit_rate"]) // 1000
-                merged["bitrate"] = f"{br_kbps}k"
-            if "sample_rate" in info and not override.get("sample_rate"):
-                merged["sample_rate"] = info["sample_rate"]
 
-        if cat == "audio" and not merged.get("sample_rate"):
-            merged["sample_rate"] = "44100"
-
-    return HTMLResponse(_settings_form_html(cat, merged, is_group=False, file_id=file_id, filename=entry["filename"], orig_w=ow, orig_h=oh, file_duration=duration_secs))
+    return HTMLResponse(_settings_form_html(cat, merged, is_group=False, file_id=file_id, filename=entry["filename"], orig_w=ow, orig_h=oh))
 
 
 @app.post("/files/{file_id}/settings")
@@ -254,9 +238,6 @@ async def save_file_settings(file_id: str, request: Request):
         "file_size_goal": form.get("file_size_goal") == "1",
         "file_size_value": _int_or_none(form.get("file_size_value")),
         "file_size_unit": form.get("file_size_unit"),
-        "sample_rate": form.get("sample_rate"),
-        "start_time": form.get("start_time") or None,
-        "end_time": form.get("end_time") or None,
     }
     save_overrides(overrides)
     return HTMLResponse("")
@@ -293,7 +274,7 @@ def _resolve_settings(entry: dict) -> dict:
     overrides = load_overrides()
     ov = overrides.get(entry["id"], {})
     if ov.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "sample_rate", "start_time", "end_time"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit"):
             val = ov.get(key)
             if val is not None:
                 base[key] = val
@@ -426,52 +407,14 @@ async def storage_usage():
     return JSONResponse({"uploads": uploads, "outputs": outputs})
 
 
-# ── Audio Metadata Helper ──────────────────────────────────
-
-async def _get_audio_info(filepath: Path) -> dict:
-    cmd = [
-        "ffprobe", "-v", "error",
-        "-show_entries", "format=bit_rate,duration",
-        "-show_entries", "stream=sample_rate",
-        "-of", "default=noprint_wrappers=1",
-        str(filepath),
-    ]
-    proc = await asyncio.create_subprocess_exec(
-        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-    )
-    out, _ = await proc.communicate()
-    info = {}
-    for line in out.decode().splitlines():
-        if "=" in line:
-            k, v = line.split("=", 1)
-            info[k.strip()] = v.strip()
-    return info
-
-
-def _secs_to_timestamp(secs: float) -> str:
-    h = int(secs // 3600)
-    m = int((secs % 3600) // 60)
-    s = int(secs % 60)
-    if h > 0:
-        return f"{h}:{m:02d}:{s:02d}"
-    return f"{m}:{s:02d}"
-
-
-SAMPLE_RATES = ["8000", "11025", "16000", "22050", "44100", "48000", "96000", "192000"]
-
 # ── Settings Form Builder ──────────────────────────────────
 
-def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id: str = "", filename: str = "", orig_w: int | None = None, orig_h: int | None = None, file_duration: float | None = None):
+def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id: str = "", filename: str = "", orig_w: int | None = None, orig_h: int | None = None):
     fmt = values.get("output_format", "")
     quality = values.get("quality", 100)
-    crf = values.get("crf")
-    bitrate = values.get("bitrate", "")
     mw = values.get("max_width")
     mh = values.get("max_height")
     aspect_locked = values.get("aspect_locked", True)
-    sample_rate = values.get("sample_rate", "")
-    start_time = values.get("start_time", "")
-    end_time = values.get("end_time", "")
 
     formats = _format_options(category)
     format_options = "".join(
@@ -479,13 +422,9 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         for v, l in formats
     )
 
-    title = filename if not is_group else {"image": "Image Settings", "video": "Video Settings", "audio": "Audio Settings"}.get(category, "Settings")
+    title = filename if not is_group else "Image Settings"
 
-    has_resolution = category in ("image", "video")
-    has_crf = category == "video"
-    has_bitrate = category in ("video", "audio")
-
-    # Quality slider for audio: disabled when lossless format selected
+    has_resolution = category == "image"
     rows = ""
 
     # Format
@@ -506,52 +445,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
       </div>
     </div>"""
 
-    # CRF (video only)
-    if has_crf:
-        crf_val = crf if crf is not None else 23
-        rows += f"""
-    <div class="settings-field">
-      <label class="settings-label">CRF <span class="settings-hint">(0-51, lower = better)</span></label>
-      <input type="number" class="settings-input" name="crf" value="{crf_val}" min="0" max="51" step="1">
-    </div>"""
-
-    # Bitrate
-    if has_bitrate:
-        br_placeholder = "e.g. 10M" if category == "video" else "e.g. 192k"
-        rows += f"""
-    <div class="settings-field">
-      <label class="settings-label">Bitrate</label>
-      <input type="text" class="settings-input" name="bitrate" value="{bitrate}" placeholder="{br_placeholder}">
-    </div>"""
-
-    # Sample rate (audio only, per-file)
-    if category == "audio" and not is_group:
-        sr_opts = "".join(
-            f'<option value="{r}"{" selected" if r == sample_rate else ""}>{r} Hz</option>'
-            for r in SAMPLE_RATES
-        )
-        rows += f"""
-    <div class="settings-field">
-      <label class="settings-label">Sample Rate</label>
-      <select class="settings-select" name="sample_rate">{sr_opts}</select>
-    </div>"""
-
-    # Trim (per-file only)
-    if not is_group and category in ("audio", "video"):
-        end_default = _secs_to_timestamp(file_duration) if file_duration else ""
-        end_val = end_time if end_time else end_default
-        rows += f"""
-    <div class="settings-field">
-      <label class="settings-label">Trim</label>
-      <div class="settings-resolution">
-        <input type="text" class="settings-input settings-res-input" name="start_time" value="{start_time}" placeholder="0:00">
-        <span class="settings-res-x">to</span>
-        <input type="text" class="settings-input settings-res-input" name="end_time" value="{end_val}" placeholder="MM:SS">
-      </div>
-      <span class="settings-hint">Format: MM:SS or HH:MM:SS</span>
-    </div>"""
-
-    # Resolution / Scale (image/video only)
+    # Resolution / Scale (image only)
     if has_resolution:
         use_scale_mode = values.get("use_scale", False)
         scale_pct_val = values.get("scale_pct", "")
@@ -679,10 +573,6 @@ def _tab_row(active_cat: str) -> str:
 def _format_options(category: str) -> list[tuple[str, str]]:
     if category == "image":
         return [(f, f) for f in IMAGE_FORMATS]
-    if category == "video":
-        return VIDEO_FORMATS
-    if category == "audio":
-        return [(f, f) for f in AUDIO_FORMATS]
     return []
 
 

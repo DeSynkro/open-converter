@@ -72,35 +72,9 @@ EXT_TO_FORMAT = {
     ".gif": "GIF", ".qoi": "QOI", ".ico": "ICO",
 }
 
-VIDEO_FORMATS = [
-    ("mp4", "MP4 (H.264)"),
-    ("mp4_hevc", "MP4 (H.265/HEVC)"),
-    ("webm", "WebM (VP9)"),
-    ("avi", "AVI"),
-    ("mkv", "MKV"),
-    ("gif", "GIF"),
-]
-
-AUDIO_FORMATS = ["MP3", "AAC", "FLAC", "OGG", "WAV", "Opus", "M4A", "ALAC", "AIFF", "AC3", "WMA"]
-LOSSLESS_AUDIO = {"FLAC", "WAV", "ALAC", "AIFF"}
-
 DEFAULT_SETTINGS = {
     "image": {
         "output_format": "JPEG", "quality": 100, "crf": None, "bitrate": None,
-        "max_width": None, "max_height": None, "strip_metadata": False,
-        "preserve_transparency": True, "use_scale": False, "scale_pct": None,
-        "aspect_locked": True, "file_size_goal": False, "file_size_value": None,
-        "file_size_unit": "MB",
-    },
-    "video": {
-        "output_format": "mp4", "quality": 70, "crf": 23, "bitrate": None,
-        "max_width": None, "max_height": None, "strip_metadata": False,
-        "preserve_transparency": True, "use_scale": False, "scale_pct": None,
-        "aspect_locked": True, "file_size_goal": False, "file_size_value": None,
-        "file_size_unit": "MB",
-    },
-    "audio": {
-        "output_format": "MP3", "quality": 80, "crf": None, "bitrate": None,
         "max_width": None, "max_height": None, "strip_metadata": False,
         "preserve_transparency": True, "use_scale": False, "scale_pct": None,
         "aspect_locked": True, "file_size_goal": False, "file_size_value": None,

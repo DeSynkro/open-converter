@@ -188,8 +188,6 @@
       let pendingDelId = '';
       let toastTimer = null;
 
-      const LOSSLESS_AUDIO = new Set(['FLAC', 'WAV', 'ALAC', 'AIFF']);
-
       // ── Upload ───────────────────────────────────────
 
       function getExistingNames() {
@@ -450,7 +448,6 @@
             settingsBody.innerHTML = html;
             wireSettingsTabs();
             wireSlider();
-            wireAudioFormat();
             wireAspectLock();
             wireResizeTabs();
             wireFileSizeGoal();
@@ -474,39 +471,6 @@
             if (valSpan) valSpan.textContent = this.value;
           });
         });
-      }
-
-      function wireAudioFormat() {
-        const select = settingsBody.querySelector('select[name="output_format"]');
-        if (!select) return;
-        const form = select.closest('.settings-form');
-        const isGroup = form && form.dataset.isGroup === '1';
-        if (isGroup) {
-          const activeTab = document.querySelector('.settings-tab.active');
-          if (!activeTab || activeTab.dataset.cat !== 'audio') return;
-        } else {
-          const fileId = form ? form.dataset.fileId : '';
-          if (!fileId) return;
-          const entry = document.querySelector('.file-entry[data-id="' + fileId + '"]');
-          if (!entry || entry.dataset.category !== 'audio') return;
-        }
-        updateAudioQuality(select);
-        select.addEventListener('change', function() { updateAudioQuality(this); });
-      }
-
-      function updateAudioQuality(select) {
-        const fmt = select.value;
-        const field = select.closest('.settings-body').querySelector('.settings-field:nth-child(2)');
-        if (!field) return;
-        const slider = field.querySelector('.settings-slider');
-        if (!slider) return;
-        if (LOSSLESS_AUDIO.has(fmt)) {
-          field.classList.add('disabled-field');
-          slider.disabled = true;
-        } else {
-          field.classList.remove('disabled-field');
-          slider.disabled = false;
-        }
       }
 
       function wireAspectLock() {
@@ -621,7 +585,6 @@
             settingsBody.innerHTML = html;
             wireSettingsTabs();
             wireSlider();
-            wireAudioFormat();
             wireAspectLock();
             var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
             if (gear) gear.classList.remove('edited');
