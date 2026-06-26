@@ -27,6 +27,7 @@ class GroupSettings(BaseModel):
     file_size_goal: bool = False
     file_size_value: int | None = None
     file_size_unit: str = "MB"
+    dpi: int | None = None
 
 
 class FileOverride(BaseModel):
@@ -46,6 +47,7 @@ class FileOverride(BaseModel):
     file_size_goal: bool | None = None
     file_size_value: int | None = None
     file_size_unit: str | None = None
+    dpi: int | None = None
 
 
 def categorize(mime: str) -> str:
@@ -78,6 +80,6 @@ DEFAULT_SETTINGS = {
         "max_width": None, "max_height": None, "strip_metadata": False,
         "preserve_transparency": True, "use_scale": False, "scale_pct": None,
         "aspect_locked": True, "file_size_goal": False, "file_size_value": None,
-        "file_size_unit": "MB",
+        "file_size_unit": "MB", "dpi": None,
     },
 }

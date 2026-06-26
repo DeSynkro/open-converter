@@ -82,6 +82,10 @@ async def convert(file_id: str, entry: dict, settings: dict):
                 if output_format == "JPEG":
                     cmd.extend(["-define", f"jpeg:extent={value}{unit}"])
 
+        dpi = settings.get("dpi")
+        if dpi:
+            cmd.extend(["-units", "PixelsPerInch", "-density", str(dpi)])
+
         cmd.append(str(output_path))
 
         update_progress(file_id, 50)

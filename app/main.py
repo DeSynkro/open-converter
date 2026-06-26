@@ -203,7 +203,7 @@ async def file_settings(file_id: str):
     if cat == "image":
         merged["output_format"] = EXT_TO_FORMAT.get(Path(entry["filename"]).suffix.lower(), "JPEG")
     if override.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi"):
             val = override.get(key)
             if val is not None:
                 merged[key] = val
@@ -238,6 +238,7 @@ async def save_file_settings(file_id: str, request: Request):
         "file_size_goal": form.get("file_size_goal") == "1",
         "file_size_value": _int_or_none(form.get("file_size_value")),
         "file_size_unit": form.get("file_size_unit"),
+        "dpi": _int_or_none(form.get("dpi")),
     }
     save_overrides(overrides)
     return HTMLResponse("")
@@ -274,7 +275,7 @@ def _resolve_settings(entry: dict) -> dict:
     overrides = load_overrides()
     ov = overrides.get(entry["id"], {})
     if ov.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi"):
             val = ov.get(key)
             if val is not None:
                 base[key] = val
@@ -415,6 +416,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
     mw = values.get("max_width")
     mh = values.get("max_height")
     aspect_locked = values.get("aspect_locked", True)
+    dpi = values.get("dpi", "")
 
     formats = _format_options(category)
     format_options = "".join(
@@ -499,6 +501,16 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         <input type="number" class="settings-input" name="scale_pct" value="{scale_pct_str}" placeholder="50" min="1" max="1000">
         <span class="settings-hint">Percentage of original size</span>
       </div>
+    </div>"""
+
+    # DPI
+    if category == "image":
+        dpi_val = f' value="{dpi}"' if dpi else ""
+        rows += f"""
+    <div class="settings-field">
+      <label class="settings-label">DPI</label>
+      <input type="number" class="settings-input" name="dpi"{dpi_val} placeholder="Leave empty for original" min="72" max="2400">
+      <span class="settings-hint">Dots per inch for output (JPEG, PNG, TIFF)</span>
     </div>"""
 
     # Strip Metadata
