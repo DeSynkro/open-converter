@@ -390,6 +390,18 @@ def _extra_audio_fields(raw: dict) -> dict:
     return info
 
 
+def get_dpi(filepath: Path, mime_type: str) -> int | None:
+    if mime_type.startswith("image/"):
+        try:
+            with Image.open(filepath) as img:
+                dpi = img.info.get("dpi")
+                if dpi and len(dpi) >= 2 and dpi[0] and dpi[0] > 0:
+                    return round(dpi[0])
+        except Exception:
+            pass
+    return None
+
+
 def get_dimensions(filepath: Path, mime_type: str) -> tuple[int | None, int | None]:
     if mime_type.startswith("image/"):
         try:

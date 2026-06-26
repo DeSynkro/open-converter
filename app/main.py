@@ -18,7 +18,7 @@ from .converters import (
     get_status,
     reconstruct_state,
 )
-from .metadata import get_dimensions, get_extended_metadata, get_metadata
+from .metadata import get_dimensions, get_dpi, get_extended_metadata, get_metadata
 from .models import (
     EXT_TO_FORMAT,
     IMAGE_FORMATS,
@@ -208,14 +208,16 @@ async def file_settings(file_id: str):
             if val is not None:
                 merged[key] = val
 
-    ow, oh = None, None
+    ow, oh, orig_dpi = None, None, None
     ext = Path(entry["filename"]).suffix
     filepath = UPLOADS_DIR / f"{entry['id']}{ext}"
     if filepath.exists():
         if cat in ("image", "video"):
             ow, oh = get_dimensions(filepath, entry["mime_type"])
+        if cat == "image":
+            orig_dpi = get_dpi(filepath, entry["mime_type"])
 
-    return HTMLResponse(_settings_form_html(cat, merged, is_group=False, file_id=file_id, filename=entry["filename"], orig_w=ow, orig_h=oh))
+    return HTMLResponse(_settings_form_html(cat, merged, is_group=False, file_id=file_id, filename=entry["filename"], orig_w=ow, orig_h=oh, orig_dpi=orig_dpi))
 
 
 @app.post("/files/{file_id}/settings")
@@ -410,7 +412,7 @@ async def storage_usage():
 
 # ── Settings Form Builder ──────────────────────────────────
 
-def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id: str = "", filename: str = "", orig_w: int | None = None, orig_h: int | None = None):
+def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id: str = "", filename: str = "", orig_w: int | None = None, orig_h: int | None = None, orig_dpi: int | None = None):
     fmt = values.get("output_format", "")
     quality = values.get("quality", 100)
     mw = values.get("max_width")
@@ -505,11 +507,16 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
 
     # DPI
     if category == "image":
-        dpi_val = f' value="{dpi}"' if dpi else ""
+        if dpi:
+            dpi_val = f' value="{dpi}"'
+        elif not is_group and orig_dpi:
+            dpi_val = f' value="{orig_dpi}"'
+        else:
+            dpi_val = ""
         rows += f"""
     <div class="settings-field">
       <label class="settings-label">DPI</label>
-      <input type="number" class="settings-input" name="dpi"{dpi_val} placeholder="Leave empty for original" min="72" max="2400">
+      <input type="number" class="settings-input settings-res-input" name="dpi"{dpi_val} placeholder="DPI" min="72" max="2400">
       <span class="settings-hint">Dots per inch for output (JPEG, PNG, TIFF)</span>
     </div>"""
 
