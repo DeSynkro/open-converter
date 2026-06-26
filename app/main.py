@@ -529,6 +529,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         <input type="text" class="settings-input" name="bitrate" value="{bitrate}" placeholder="e.g. 192">
         <span class="settings-res-x">kbps</span>
       </div>
+      <span class="settings-hint">Target bitrate is a guide, not a hard limit. Actual output varies by encoder, sample rate, and audio content.</span>
     </div>"""
 
     # Sample rate (audio only)

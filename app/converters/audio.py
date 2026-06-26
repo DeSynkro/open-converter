@@ -56,6 +56,18 @@ def _quality_to_bitrate(fmt: str, quality: int) -> int:
     return lo + round((quality - 1) / 99 * (hi - lo))
 
 
+def _bitrate_ceiling(fmt: str, sample_rate: str, channels: str) -> int:
+    if fmt in LOSSLESS_FORMATS or fmt not in BITRATE_RANGES:
+        return 0
+    lo, hi = BITRATE_RANGES[fmt]
+    ratio = 1.0
+    if sample_rate:
+        ratio *= min(1.0, int(sample_rate) / 44100.0)
+    if channels:
+        ratio *= min(1.0, int(channels) / 2.0)
+    return max(lo, round(hi * ratio))
+
+
 async def convert(file_id: str, entry: dict, settings: dict):
     try:
         ext = Path(entry["filename"]).suffix
@@ -75,24 +87,50 @@ async def convert(file_id: str, entry: dict, settings: dict):
         if settings.get("strip_metadata"):
             cmd.extend(["-map_metadata", "-1"])
 
+        # Probe source for fallback sample rate / channels
+        probe_cmd = [
+            "ffprobe", "-v", "error",
+            "-show_entries", "stream=sample_rate,channels",
+            "-of", "default=noprint_wrappers=1",
+            str(input_path),
+        ]
+        proc = await asyncio.create_subprocess_exec(
+            *probe_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        probe_out, _ = await proc.communicate()
+        orig_info = {}
+        for line in probe_out.decode().splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                orig_info[k.strip()] = v.strip()
+        orig_sr = orig_info.get("sample_rate", "")
+        orig_ch = orig_info.get("channels", "")
+
+        sample_rate = settings.get("sample_rate", "") or orig_sr
+        channels = settings.get("channels", "") or orig_ch
+
+        ceiling = _bitrate_ceiling(output_format, sample_rate, channels)
+
         if settings.get("manual_bitrate") and settings.get("bitrate"):
             br_val = settings["bitrate"].rstrip("kK")
+            if ceiling > 0:
+                br_val = str(min(int(br_val), ceiling))
             cmd.extend(["-b:a", f"{br_val}k"])
         elif output_format not in LOSSLESS_FORMATS:
             quality = settings.get("quality", 100)
             br = _quality_to_bitrate(output_format, quality)
             if br > 0:
+                if ceiling > 0:
+                    br = min(br, ceiling)
                 cmd.extend(["-b:a", f"{br}k"])
 
         codec = CODEC_MAP.get(output_format)
         if codec:
             cmd.extend(["-c:a", codec])
 
-        sample_rate = settings.get("sample_rate", "")
         if sample_rate:
             cmd.extend(["-ar", sample_rate])
 
-        channels = settings.get("channels", "")
         if channels:
             cmd.extend(["-ac", channels])
 
