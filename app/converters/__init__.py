@@ -79,5 +79,8 @@ async def dispatch(file_id: str, entry: dict, settings: dict):
         if cat == "image":
             from .image import convert as convert_image
             await convert_image(file_id, entry, settings)
+        elif cat == "audio":
+            from .audio import convert as convert_audio
+            await convert_audio(file_id, entry, settings)
         else:
             set_error(file_id, f"Converter for '{cat}' not yet implemented")

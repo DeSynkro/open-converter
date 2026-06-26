@@ -66,6 +66,9 @@ def now_iso() -> str:
 
 IMAGE_FORMATS = ["JPEG", "PNG", "WebP", "AVIF", "HEIC", "BMP", "TIFF", "GIF", "QOI", "ICO"]
 
+AUDIO_FORMATS = ["MP3", "AAC", "FLAC", "OGG", "WAV", "Opus", "M4A", "ALAC", "AIFF", "AC3", "WMA"]
+LOSSLESS_AUDIO = {"FLAC", "WAV", "ALAC", "AIFF"}
+
 EXT_TO_FORMAT = {
     ".jpg": "JPEG", ".jpeg": "JPEG",
     ".png": "PNG", ".webp": "WebP", ".avif": "AVIF",
@@ -81,5 +84,10 @@ DEFAULT_SETTINGS = {
         "preserve_transparency": True, "use_scale": False, "scale_pct": None,
         "aspect_locked": True, "file_size_goal": False, "file_size_value": None,
         "file_size_unit": "MB", "dpi": None,
+    },
+    "audio": {
+        "output_format": "MP3", "quality": 100, "crf": None, "bitrate": None,
+        "manual_bitrate": False, "sample_rate": "", "channels": "",
+        "strip_metadata": False,
     },
 }

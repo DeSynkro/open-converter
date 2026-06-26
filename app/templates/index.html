@@ -39,7 +39,7 @@
       <button class="filter-btn active" data-filter="all">All</button>
       <button class="filter-btn" data-filter="image">Photos</button>
       <button class="filter-btn" data-filter="video" disabled title="Coming soon">Videos</button>
-      <button class="filter-btn" data-filter="audio" disabled title="Coming soon">Audio</button>
+      <button class="filter-btn" data-filter="audio">Audio</button>
       <div class="bar-actions">
         <button class="btn btn-sm btn-outline" id="settings-btn">&#x2699; Conversion Settings</button>
         <button class="btn btn-sm btn-primary" id="convert-all-btn" {% if not files %}disabled{% endif %}>&#x26A1; Convert All</button>
@@ -451,6 +451,9 @@
             wireAspectLock();
             wireResizeTabs();
             wireFileSizeGoal();
+            wireAudioFormat();
+            wireManualBitrate();
+            wireTrim();
           })
           .catch(() => { settingsBody.innerHTML = '<p>Failed to load settings</p>'; });
       }
@@ -537,6 +540,66 @@
         });
       }
 
+      function wireAudioFormat() {
+        const select = settingsBody.querySelector('select[name="output_format"]');
+        if (!select) return;
+        const form = select.closest('.settings-form');
+        const isGroup = form && form.dataset.isGroup === '1';
+        if (isGroup) {
+          const activeTab = document.querySelector('.settings-tab.active');
+          if (!activeTab || activeTab.dataset.cat !== 'audio') return;
+        } else {
+          const fileId = form ? form.dataset.fileId : '';
+          if (!fileId) return;
+          const entry = document.querySelector('.file-entry[data-id="' + fileId + '"]');
+          if (!entry || entry.dataset.category !== 'audio') return;
+        }
+        updateAudioQuality(select);
+        select.addEventListener('change', function() { updateAudioQuality(this); });
+      }
+
+      function updateAudioQuality(select) {
+        const fmt = select.value;
+        const field = select.closest('.settings-body').querySelector('.settings-field:nth-child(2)');
+        if (!field) return;
+        const slider = field.querySelector('.settings-slider');
+        if (!slider) return;
+        if (['FLAC', 'WAV', 'ALAC', 'AIFF'].indexOf(fmt) !== -1) {
+          field.classList.add('disabled-field');
+          slider.disabled = true;
+        } else {
+          field.classList.remove('disabled-field');
+          slider.disabled = false;
+        }
+      }
+
+      function wireManualBitrate() {
+        var cb = settingsBody.querySelector('[name="manual_bitrate"]');
+        if (!cb) return;
+        var targetField = cb.closest('.settings-field').nextElementSibling;
+        if (!targetField) return;
+        cb.addEventListener('change', function() {
+          targetField.style.display = this.checked ? 'block' : 'none';
+        });
+      }
+
+      function wireTrim() {
+        var cb = settingsBody.querySelector('.trim-toggle');
+        if (!cb) return;
+        var startField = cb.closest('.settings-field').nextElementSibling;
+        var endField = startField ? startField.nextElementSibling : null;
+        if (!startField || !endField) return;
+        function toggle() {
+          startField.style.display = this.checked ? 'block' : 'none';
+          endField.style.display = this.checked ? 'block' : 'none';
+          if (!this.checked) {
+            startField.querySelector('input').value = '';
+            endField.querySelector('input').value = '';
+          }
+        }
+        cb.addEventListener('change', toggle);
+      }
+
       document.getElementById('settings-btn').addEventListener('click', function() {
         openSettings('/settings/group?category=image', true, '');
       });
@@ -586,6 +649,9 @@
             wireSettingsTabs();
             wireSlider();
             wireAspectLock();
+            wireAudioFormat();
+            wireManualBitrate();
+            wireTrim();
             var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
             if (gear) gear.classList.remove('edited');
           });
@@ -694,9 +760,9 @@
       });
 
       document.getElementById('convert-all-btn').addEventListener('click', function() {
-        const imageCount = document.querySelectorAll('.file-entry[data-category="image"]').length;
-        if (!imageCount) return;
-        convertModalText.textContent = 'Convert all ' + imageCount + ' image file' + (imageCount !== 1 ? 's' : '') + '?';
+        const convertible = document.querySelectorAll('.file-entry[data-category="image"], .file-entry[data-category="audio"]');
+        if (!convertible.length) return;
+        convertModalText.textContent = 'Convert all ' + convertible.length + ' file' + (convertible.length !== 1 ? 's' : '') + '?';
         convertModal.classList.add('visible');
       });
 
@@ -845,7 +911,7 @@
       document.querySelectorAll('.filter-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
           if (this.disabled) {
-            showToast('Video and audio conversion coming soon');
+            showToast('Video conversion coming soon');
             return;
           }
           switchFilter(this.dataset.filter);

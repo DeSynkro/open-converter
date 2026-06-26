@@ -20,8 +20,10 @@ from .converters import (
 )
 from .metadata import get_dimensions, get_dpi, get_extended_metadata, get_metadata
 from .models import (
+    AUDIO_FORMATS,
     EXT_TO_FORMAT,
     IMAGE_FORMATS,
+    LOSSLESS_AUDIO,
     FileEntry,
     categorize,
     now_iso,
@@ -170,7 +172,7 @@ async def save_group_settings(request: Request):
     settings = load_settings()
     settings[category] = {
         "output_format": form.get("output_format", ""),
-        "quality": int(form.get("quality", 80)),
+        "quality": int(form.get("quality", 100)),
         "crf": _int_or_none(form.get("crf")),
         "bitrate": form.get("bitrate") or None,
         "max_width": _int_or_none(form.get("max_width")),
@@ -182,6 +184,9 @@ async def save_group_settings(request: Request):
         "file_size_goal": form.get("file_size_goal") == "1",
         "file_size_value": _int_or_none(form.get("file_size_value")),
         "file_size_unit": form.get("file_size_unit", "MB"),
+        "sample_rate": form.get("sample_rate") or None,
+        "channels": form.get("channels") or None,
+        "manual_bitrate": form.get("manual_bitrate") == "1",
     }
     save_settings(settings)
     return HTMLResponse("")
@@ -203,12 +208,12 @@ async def file_settings(file_id: str):
     if cat == "image":
         merged["output_format"] = EXT_TO_FORMAT.get(Path(entry["filename"]).suffix.lower(), "JPEG")
     if override.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time"):
             val = override.get(key)
             if val is not None:
                 merged[key] = val
 
-    ow, oh, orig_dpi = None, None, None
+    ow, oh, orig_dpi, orig_sample_rate, orig_channels, orig_duration = None, None, None, None, None, None
     ext = Path(entry["filename"]).suffix
     filepath = UPLOADS_DIR / f"{entry['id']}{ext}"
     if filepath.exists():
@@ -216,8 +221,22 @@ async def file_settings(file_id: str):
             ow, oh = get_dimensions(filepath, entry["mime_type"])
         if cat == "image":
             orig_dpi = get_dpi(filepath, entry["mime_type"])
+        elif cat == "audio":
+            info = await _get_audio_info(filepath)
+            sr = info.get("sample_rate")
+            if sr:
+                orig_sample_rate = sr
+            ch = info.get("channels")
+            if ch:
+                orig_channels = ch
+            dur = info.get("duration")
+            if dur:
+                orig_duration = float(dur)
+            if "bit_rate" in info and not merged.get("manual_bitrate"):
+                br_kbps = int(info["bit_rate"]) // 1000
+                merged["bitrate"] = f"{br_kbps}k"
 
-    return HTMLResponse(_settings_form_html(cat, merged, is_group=False, file_id=file_id, filename=entry["filename"], orig_w=ow, orig_h=oh, orig_dpi=orig_dpi))
+    return HTMLResponse(_settings_form_html(cat, merged, is_group=False, file_id=file_id, filename=entry["filename"], orig_w=ow, orig_h=oh, orig_dpi=orig_dpi, orig_sample_rate=orig_sample_rate, orig_channels=orig_channels, orig_duration=orig_duration))
 
 
 @app.post("/files/{file_id}/settings")
@@ -241,6 +260,11 @@ async def save_file_settings(file_id: str, request: Request):
         "file_size_value": _int_or_none(form.get("file_size_value")),
         "file_size_unit": form.get("file_size_unit"),
         "dpi": _int_or_none(form.get("dpi")),
+        "sample_rate": form.get("sample_rate") or None,
+        "channels": form.get("channels") or None,
+        "manual_bitrate": form.get("manual_bitrate") == "1",
+        "start_time": form.get("start_time") or None,
+        "end_time": form.get("end_time") or None,
     }
     save_overrides(overrides)
     return HTMLResponse("")
@@ -277,7 +301,7 @@ def _resolve_settings(entry: dict) -> dict:
     overrides = load_overrides()
     ov = overrides.get(entry["id"], {})
     if ov.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time"):
             val = ov.get(key)
             if val is not None:
                 base[key] = val
@@ -291,8 +315,8 @@ async def convert_single(file_id: str):
     if not entry:
         return JSONResponse({"error": "File not found"}, status_code=404)
 
-    if entry["category"] != "image":
-        return JSONResponse({"error": "Only image conversion is available in alpha"}, status_code=400)
+    if entry["category"] not in ("image", "audio"):
+        return JSONResponse({"error": "Only image and audio conversion are available"}, status_code=400)
 
     state = get_status(file_id)
     if state and state["status"] in ("running", "pending"):
@@ -308,7 +332,7 @@ async def convert_all():
     entries = load_files()
     count = 0
     for entry in entries:
-        if entry["category"] != "image":
+        if entry["category"] not in ("image", "audio"):
             continue
         fid = entry["id"]
         state = get_status(fid)
@@ -410,15 +434,54 @@ async def storage_usage():
     return JSONResponse({"uploads": uploads, "outputs": outputs})
 
 
+# ── Audio Metadata Helper ──────────────────────────────────
+
+async def _get_audio_info(filepath: Path) -> dict:
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-show_entries", "format=bit_rate,duration",
+        "-show_entries", "stream=sample_rate,channels",
+        "-of", "default=noprint_wrappers=1",
+        str(filepath),
+    ]
+    proc = await asyncio.create_subprocess_exec(
+        *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+    )
+    out, _ = await proc.communicate()
+    info = {}
+    for line in out.decode().splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            info[k.strip()] = v.strip()
+    return info
+
+
+def _secs_to_timestamp(secs: float) -> str:
+    h = int(secs // 3600)
+    m = int((secs % 3600) // 60)
+    s = int(secs % 60)
+    if h > 0:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
+SAMPLE_RATES = ["8000", "11025", "16000", "22050", "44100", "48000", "96000", "192000"]
+
 # ── Settings Form Builder ──────────────────────────────────
 
-def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id: str = "", filename: str = "", orig_w: int | None = None, orig_h: int | None = None, orig_dpi: int | None = None):
+def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id: str = "", filename: str = "", orig_w: int | None = None, orig_h: int | None = None, orig_dpi: int | None = None, orig_sample_rate: str | None = None, orig_channels: str | None = None, orig_duration: float | None = None):
     fmt = values.get("output_format", "")
     quality = values.get("quality", 100)
     mw = values.get("max_width")
     mh = values.get("max_height")
     aspect_locked = values.get("aspect_locked", True)
     dpi = values.get("dpi", "")
+    manual_bitrate = values.get("manual_bitrate", False)
+    bitrate = values.get("bitrate", "")
+    sample_rate = values.get("sample_rate", "")
+    channels = values.get("channels", "")
+    start_time = values.get("start_time", "")
+    end_time = values.get("end_time", "")
 
     formats = _format_options(category)
     format_options = "".join(
@@ -426,8 +489,9 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         for v, l in formats
     )
 
-    title = filename if not is_group else "Image Settings"
+    title = filename if not is_group else {"image": "Image Settings", "audio": "Audio Settings"}.get(category, "Settings")
 
+    is_audio = category == "audio"
     has_resolution = category == "image"
     rows = ""
 
@@ -447,6 +511,80 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         <span>Small file</span>
         <span>Best quality</span>
       </div>
+    </div>"""
+
+    # Manual bitrate (audio only)
+    if is_audio:
+        mb_checked = ' checked' if manual_bitrate else ''
+        mb_display = "block" if manual_bitrate else "none"
+        rows += f"""
+    <div class="settings-field settings-field-checkbox">
+      <label class="settings-label-checkbox">
+        <input type="checkbox" name="manual_bitrate" value="1"{mb_checked}>
+        Manual bitrate
+      </label>
+    </div>
+    <div class="settings-field" style="display:{mb_display}">
+      <label class="settings-label">Bitrate</label>
+      <input type="text" class="settings-input" name="bitrate" value="{bitrate}" placeholder="e.g. 192k">
+    </div>"""
+
+    # Sample rate (audio only)
+    if is_audio:
+        sr_opts = ""
+        if is_group:
+            sr_opts += '<option value=""' + (' selected' if not sample_rate else '') + '>Default (keep original)</option>'
+        elif not is_group and orig_sample_rate:
+            sr_selected = " selected" if not sample_rate or sample_rate == orig_sample_rate else ""
+            sr_opts += f'<option value="{orig_sample_rate}"{sr_selected}>{orig_sample_rate} Hz (original)</option>'
+        for r in SAMPLE_RATES:
+            sr_selected = ' selected' if r == sample_rate else ''
+            sr_opts += f'<option value="{r}"{sr_selected}>{r} Hz</option>'
+        rows += f"""
+    <div class="settings-field">
+      <label class="settings-label">Sample Rate</label>
+      <select class="settings-select" name="sample_rate">{sr_opts}</select>
+    </div>"""
+
+    # Channels (audio only)
+    if is_audio:
+        ch_opts = ""
+        if is_group:
+            ch_opts += '<option value=""' + (' selected' if not channels else '') + '>Default (keep original)</option>'
+        elif not is_group and orig_channels:
+            ch_selected = " selected" if not channels or channels == orig_channels else ""
+            ch_label = "Mono" if orig_channels == "1" else "Stereo" if orig_channels == "2" else f"{orig_channels} channels"
+            ch_opts += f'<option value="{orig_channels}"{ch_selected}>{ch_label} (original)</option>'
+        for val, label in [("1", "Mono"), ("2", "Stereo")]:
+            ch_selected = ' selected' if val == channels else ''
+            ch_opts += f'<option value="{val}"{ch_selected}>{label}</option>'
+        rows += f"""
+    <div class="settings-field">
+      <label class="settings-label">Channels</label>
+      <select class="settings-select" name="channels">{ch_opts}</select>
+    </div>"""
+
+    # Trim (audio only, per-file)
+    if is_audio and not is_group:
+        trim_checked = ' checked' if start_time or end_time else ''
+        trim_display = "block" if start_time or end_time else "none"
+        end_default = _secs_to_timestamp(orig_duration) if orig_duration else ""
+        end_val = end_time if end_time else end_default
+        rows += f"""
+    <div class="settings-field settings-field-checkbox">
+      <label class="settings-label-checkbox">
+        <input type="checkbox" class="trim-toggle" value="1"{trim_checked}>
+        Trim
+      </label>
+    </div>
+    <div class="settings-field" style="display:{trim_display}">
+      <label class="settings-label">Start</label>
+      <input type="text" class="settings-input" name="start_time" value="{start_time}" placeholder="0:00">
+    </div>
+    <div class="settings-field" style="display:{trim_display}">
+      <label class="settings-label">End</label>
+      <input type="text" class="settings-input" name="end_time" value="{end_val}" placeholder="{end_default}">
+      <span class="settings-hint">Format: MM:SS or HH:MM:SS</span>
     </div>"""
 
     # Resolution / Scale (image only)
@@ -505,7 +643,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
       </div>
     </div>"""
 
-    # DPI
+    # DPI (image only)
     if category == "image":
         if dpi:
             dpi_val = f' value="{dpi}"'
@@ -528,7 +666,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         <input type="checkbox" name="strip_metadata" value="1"{strip_checked}>
         Strip Metadata
       </label>
-      <span class="settings-hint">Remove EXIF, tags, and metadata from output</span>
+      <span class="settings-hint">Remove metadata from output</span>
     </div>"""
 
     # Preserve Transparency (images only)
@@ -581,7 +719,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
 
 
 def _tab_row(active_cat: str) -> str:
-    cats = [("image", "Images")]
+    cats = [("image", "Images"), ("audio", "Audio")]
     tabs = "".join(
         f'<button class="settings-tab{" active" if c == active_cat else ""}" data-cat="{c}">{l}</button>'
         for c, l in cats
@@ -592,6 +730,8 @@ def _tab_row(active_cat: str) -> str:
 def _format_options(category: str) -> list[tuple[str, str]]:
     if category == "image":
         return [(f, f) for f in IMAGE_FORMATS]
+    if category == "audio":
+        return [(f, f) for f in AUDIO_FORMATS]
     return []
 
 
