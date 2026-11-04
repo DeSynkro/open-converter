@@ -190,6 +190,7 @@ async def save_group_settings(request: Request):
         "channels": form.get("channels") or None,
         "manual_bitrate": form.get("manual_bitrate") == "1",
         "preset": form.get("preset") or None,
+        "copy_audio": form.get("copy_audio") == "1",
     }
     save_settings(settings)
     return HTMLResponse("")
@@ -211,7 +212,7 @@ async def file_settings(file_id: str):
     if cat == "image":
         merged["output_format"] = EXT_TO_FORMAT.get(Path(entry["filename"]).suffix.lower(), "JPEG")
     if override.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset", "copy_audio"):
             val = override.get(key)
             if val is not None:
                 merged[key] = val
@@ -291,6 +292,7 @@ async def save_file_settings(file_id: str, request: Request):
         "start_time": form.get("start_time") or None,
         "end_time": form.get("end_time") or None,
         "preset": form.get("preset") or None,
+        "copy_audio": form.get("copy_audio") == "1",
     }
     save_overrides(overrides)
     return HTMLResponse("")
@@ -327,7 +329,7 @@ def _resolve_settings(entry: dict) -> dict:
     overrides = load_overrides()
     ov = overrides.get(entry["id"], {})
     if ov.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset", "copy_audio"):
             val = ov.get(key)
             if val is not None:
                 base[key] = val
@@ -602,6 +604,19 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
       <label class="settings-label">Encoding Preset</label>
       <select class="settings-select" name="preset">{preset_opts}</select>
       <span class="settings-hint">Slower presets produce smaller files at the same quality.</span>
+    </div>"""
+
+    # Keep original audio (video only)
+    if is_video:
+        copy_audio_checked = ' checked' if values.get("copy_audio") else ''
+        copy_audio_tip = "Copies the original audio without re-encoding, so it stays lossless and the video converts faster. If the output format does not support the source audio codec (for example MP3 in WebM), the conversion may fail or play without sound. Leave unchecked to convert the audio automatically."
+        rows += f"""
+    <div class="settings-field settings-field-checkbox">
+      <label class="settings-label-checkbox">
+        <input type="checkbox" name="copy_audio" value="1"{copy_audio_checked}>
+        Keep original audio format
+      </label>
+      <button type="button" class="settings-help" data-tip="{copy_audio_tip}" aria-label="About keeping the original audio format">&#x24D8;</button>
     </div>"""
 
     # Manual bitrate (audio only)

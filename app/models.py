@@ -28,6 +28,7 @@ class GroupSettings(BaseModel):
     file_size_value: int | None = None
     file_size_unit: str = "MB"
     dpi: int | None = None
+    copy_audio: bool = False
 
 
 class FileOverride(BaseModel):
@@ -48,6 +49,7 @@ class FileOverride(BaseModel):
     file_size_value: int | None = None
     file_size_unit: str | None = None
     dpi: int | None = None
+    copy_audio: bool | None = None
 
 
 def categorize(mime: str) -> str:
@@ -97,6 +99,6 @@ DEFAULT_SETTINGS = {
     "video": {
         "output_format": "MP4", "quality": 100, "crf": 23, "bitrate": None,
         "max_width": None, "max_height": None, "aspect_locked": True,
-        "preset": "medium", "strip_metadata": False,
+        "preset": "medium", "strip_metadata": False, "copy_audio": False,
     },
 }
