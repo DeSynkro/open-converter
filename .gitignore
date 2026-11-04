@@ -12,10 +12,8 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+.directory
 
 # IDE
 .vscode/
 .idea/
-
-# Opencode
-session.json

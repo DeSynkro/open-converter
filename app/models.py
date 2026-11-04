@@ -71,6 +71,8 @@ IMAGE_FORMATS = ["JPEG", "PNG", "WebP", "AVIF", "HEIC", "BMP", "TIFF", "GIF", "Q
 AUDIO_FORMATS = ["MP3", "AAC", "FLAC", "OGG", "WAV", "Opus", "M4A", "ALAC", "AIFF", "AC3", "WMA"]
 LOSSLESS_AUDIO = {"FLAC", "WAV", "ALAC", "AIFF"}
 
+VIDEO_FORMATS = ["MP4", "MKV", "WebM", "MOV", "AVI", "FLV"]
+
 EXT_TO_FORMAT = {
     ".jpg": "JPEG", ".jpeg": "JPEG",
     ".png": "PNG", ".webp": "WebP", ".avif": "AVIF",
@@ -91,5 +93,10 @@ DEFAULT_SETTINGS = {
         "output_format": "MP3", "quality": 100, "crf": None, "bitrate": None,
         "manual_bitrate": False, "sample_rate": "", "channels": "",
         "strip_metadata": False,
+    },
+    "video": {
+        "output_format": "MP4", "quality": 100, "crf": 23, "bitrate": None,
+        "max_width": None, "max_height": None, "aspect_locked": True,
+        "preset": "medium", "strip_metadata": False,
     },
 }

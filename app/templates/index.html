@@ -38,7 +38,7 @@
       <span class="file-count" id="file-count">{{ files|length }} file{% if files|length != 1 %}s{% endif %}</span>
       <button class="filter-btn active" data-filter="all">All</button>
       <button class="filter-btn" data-filter="image">Photos</button>
-      <button class="filter-btn" data-filter="video" disabled title="Coming soon">Videos</button>
+      <button class="filter-btn" data-filter="video">Videos</button>
       <button class="filter-btn" data-filter="audio">Audio</button>
       <div class="bar-actions">
         <button class="btn btn-sm btn-outline" id="settings-btn">&#x2699; Conversion Settings</button>
@@ -628,9 +628,12 @@
           const activeTab = document.querySelector('.settings-tab.active');
           fd.append('category', activeTab ? activeTab.dataset.cat : 'image');
         }
+        var trimCb = form.querySelector('.trim-toggle');
+        var trimOn = trimCb ? trimCb.checked : true;
         form.querySelectorAll('select, input').forEach(function(el) {
           if (!el.name) return;
           if (el.type === 'checkbox' && !el.checked) return;
+          if (!trimOn && (el.name === 'start_time' || el.name === 'end_time')) return;
           fd.append(el.name, el.value);
         });
 
@@ -769,7 +772,7 @@
       });
 
       document.getElementById('convert-all-btn').addEventListener('click', function() {
-        const convertible = document.querySelectorAll('.file-entry[data-category="image"], .file-entry[data-category="audio"]');
+        const convertible = document.querySelectorAll('.file-entry[data-category="image"], .file-entry[data-category="audio"], .file-entry[data-category="video"]');
         if (!convertible.length) return;
         convertModalText.textContent = 'Convert all ' + convertible.length + ' file' + (convertible.length !== 1 ? 's' : '') + '?';
         convertModal.classList.add('visible');
@@ -919,10 +922,6 @@
 
       document.querySelectorAll('.filter-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
-          if (this.disabled) {
-            showToast('Video conversion coming soon');
-            return;
-          }
           switchFilter(this.dataset.filter);
         });
       });

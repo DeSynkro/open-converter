@@ -876,6 +876,12 @@ body {
   border: 2px solid var(--surface);
 }
 
+/* Reversed range: max on the left, min on the right (used for video CRF,
+   where a lower value means higher quality). */
+.settings-slider-reverse {
+  direction: rtl;
+}
+
 .settings-range-labels {
   display: flex;
   justify-content: space-between;
