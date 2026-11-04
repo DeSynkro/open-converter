@@ -791,8 +791,13 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
             preview_html = f"""
     <div class="settings-field crop-preview-field" style="display:{crop_display}">
       <div class="crop-preview" data-orig-w="{orig_w}" data-orig-h="{orig_h}">
-        <img class="crop-preview-img" src="/files/{file_id}/thumb" alt="Video preview">
-        <div class="crop-rect"></div>
+        <img class="crop-preview-img" src="/files/{file_id}/thumb" alt="Video preview" draggable="false">
+        <div class="crop-rect">
+          <span class="crop-handle crop-handle-nw" data-handle="nw"></span>
+          <span class="crop-handle crop-handle-ne" data-handle="ne"></span>
+          <span class="crop-handle crop-handle-sw" data-handle="sw"></span>
+          <span class="crop-handle crop-handle-se" data-handle="se"></span>
+        </div>
       </div>
     </div>"""
         rows += f"""

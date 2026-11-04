@@ -810,6 +810,7 @@ body {
   border-radius: 6px;
   border: 1px solid var(--border);
   background: #000;
+  user-select: none;
 }
 
 .crop-preview-img {
@@ -824,8 +825,26 @@ body {
   position: absolute;
   border: 2px solid var(--primary);
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
-  pointer-events: none;
+  box-sizing: border-box;
+  cursor: move;
+  touch-action: none;
 }
+
+.crop-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: var(--primary);
+  border: 2px solid #fff;
+  border-radius: 2px;
+  box-sizing: border-box;
+  touch-action: none;
+}
+
+.crop-handle-nw { left: -1px; top: -1px; cursor: nwse-resize; }
+.crop-handle-ne { right: -1px; top: -1px; cursor: nesw-resize; }
+.crop-handle-sw { left: -1px; bottom: -1px; cursor: nesw-resize; }
+.crop-handle-se { right: -1px; bottom: -1px; cursor: nwse-resize; }
 
 /* Fields */
 .settings-body {

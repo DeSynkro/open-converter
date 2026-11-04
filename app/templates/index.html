@@ -674,22 +674,122 @@
         var w = settingsBody.querySelector('[name="crop_w"]');
         var h = settingsBody.querySelector('[name="crop_h"]');
         if (!x || !y || !w || !h) return;
+        var lockInput = settingsBody.querySelector('[name="crop_locked"]');
+
         function num(el, fallback) {
           var v = parseFloat(el.value);
           return isNaN(v) ? fallback : v;
         }
-        function update() {
-          var cx = Math.max(0, Math.min(ow, num(x, 0)));
-          var cy = Math.max(0, Math.min(oh, num(y, 0)));
-          var cw = Math.max(0, Math.min(ow - cx, num(w, ow)));
-          var ch = Math.max(0, Math.min(oh - cy, num(h, oh)));
-          rect.style.left = (cx / ow * 100) + '%';
-          rect.style.top = (cy / oh * 100) + '%';
-          rect.style.width = (cw / ow * 100) + '%';
-          rect.style.height = (ch / oh * 100) + '%';
+        function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+        function readCrop() {
+          var cx = clamp(num(x, 0), 0, ow);
+          var cy = clamp(num(y, 0), 0, oh);
+          var cw = clamp(num(w, ow), 0, ow - cx);
+          var ch = clamp(num(h, oh), 0, oh - cy);
+          return { cx: cx, cy: cy, cw: cw, ch: ch };
         }
+        function draw(c) {
+          rect.style.left = (c.cx / ow * 100) + '%';
+          rect.style.top = (c.cy / oh * 100) + '%';
+          rect.style.width = (c.cw / ow * 100) + '%';
+          rect.style.height = (c.ch / oh * 100) + '%';
+        }
+        function apply(c) {
+          x.value = Math.round(c.cx);
+          y.value = Math.round(c.cy);
+          w.value = Math.round(c.cw);
+          h.value = Math.round(c.ch);
+          draw(c);
+        }
+        function update() { draw(readCrop()); }
         [x, y, w, h].forEach(function(el) { el.addEventListener('input', update); });
         update();
+
+        function beginDrag(ev, handle) {
+          ev.preventDefault();
+          var start = readCrop();
+          var startX = ev.clientX;
+          var startY = ev.clientY;
+          var scaleX = ow / (preview.clientWidth || 1);
+          var scaleY = oh / (preview.clientHeight || 1);
+          var locked = lockInput ? lockInput.value === '1' : true;
+          var baseW = Math.max(2, start.cw);
+          var baseH = Math.max(2, start.ch);
+          var sx = (handle === 'nw' || handle === 'sw') ? -1 : 1;
+          var sy = (handle === 'nw' || handle === 'ne') ? -1 : 1;
+          var anchorX = sx > 0 ? start.cx : start.cx + start.cw;
+          var anchorY = sy > 0 ? start.cy : start.cy + start.ch;
+
+          function move(e) {
+            var dx = (e.clientX - startX) * scaleX;
+            var dy = (e.clientY - startY) * scaleY;
+
+            if (!handle) {
+              var mcx = clamp(start.cx + dx, 0, ow - start.cw);
+              var mcy = clamp(start.cy + dy, 0, oh - start.ch);
+              apply({ cx: mcx, cy: mcy, cw: start.cw, ch: start.ch });
+              return;
+            }
+
+            if (locked) {
+              var curW = Math.max(2, baseW + sx * dx);
+              var curH = Math.max(2, baseH + sy * dy);
+              var sw = curW / baseW;
+              var sh = curH / baseH;
+              var scale = Math.abs(sw - 1) > Math.abs(sh - 1) ? sw : sh;
+              scale = Math.max(scale, 2 / baseW, 2 / baseH);
+              var nw = baseW * scale;
+              var nh = baseH * scale;
+              var maxW = sx > 0 ? ow - anchorX : anchorX;
+              var maxH = sy > 0 ? oh - anchorY : anchorY;
+              var fit = Math.min(maxW / nw, maxH / nh);
+              if (fit < 1) { nw *= fit; nh *= fit; }
+              apply({
+                cx: sx > 0 ? anchorX : anchorX - nw,
+                cy: sy > 0 ? anchorY : anchorY - nh,
+                cw: nw,
+                ch: nh
+              });
+              return;
+            }
+
+            var nw2, nh2, ncx2, ncy2;
+            if (handle === 'se') {
+              nw2 = clamp(start.cw + dx, 2, ow - start.cx);
+              nh2 = clamp(start.ch + dy, 2, oh - start.cy);
+              ncx2 = start.cx; ncy2 = start.cy;
+            } else if (handle === 'nw') {
+              nw2 = clamp(start.cw - dx, 2, start.cx + start.cw);
+              nh2 = clamp(start.ch - dy, 2, start.cy + start.ch);
+              ncx2 = start.cx + start.cw - nw2;
+              ncy2 = start.cy + start.ch - nh2;
+            } else if (handle === 'ne') {
+              nw2 = clamp(start.cw + dx, 2, ow - start.cx);
+              nh2 = clamp(start.ch - dy, 2, start.cy + start.ch);
+              ncx2 = start.cx;
+              ncy2 = start.cy + start.ch - nh2;
+            } else {
+              nw2 = clamp(start.cw - dx, 2, start.cx + start.cw);
+              nh2 = clamp(start.ch + dy, 2, oh - start.cy);
+              ncx2 = start.cx + start.cw - nw2;
+              ncy2 = start.cy;
+            }
+            apply({ cx: ncx2, cy: ncy2, cw: nw2, ch: nh2 });
+          }
+
+          function up() {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+          }
+          window.addEventListener('pointermove', move);
+          window.addEventListener('pointerup', up);
+        }
+
+        rect.addEventListener('pointerdown', function(ev) {
+          var handleEl = ev.target.closest ? ev.target.closest('.crop-handle') : null;
+          beginDrag(ev, handleEl ? handleEl.dataset.handle : null);
+        });
       }
 
       function wireVideoSubtabs() {
