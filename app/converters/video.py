@@ -48,6 +48,75 @@ async def _progress_pulse(file_id: str):
         await asyncio.sleep(1.0)
 
 
+async def _probe_duration(path: Path):
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1", str(path),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        out, _ = await proc.communicate()
+        return float(out.decode().strip())
+    except (ValueError, OSError):
+        return None
+
+
+def _parse_time(value):
+    if not value:
+        return None
+    try:
+        parts = [float(p) for p in str(value).split(":")]
+    except ValueError:
+        return None
+    total = 0.0
+    for p in parts:
+        total = total * 60 + p
+    return total
+
+
+def _timestamp_to_us(value):
+    try:
+        secs = 0.0
+        for p in value.split(":"):
+            secs = secs * 60 + float(p)
+        return int(secs * 1_000_000)
+    except (ValueError, AttributeError):
+        return None
+
+
+async def _read_progress(stream, file_id: str, duration):
+    """Parse ffmpeg -progress output and map it onto 5-95 percent."""
+    while True:
+        line = await stream.readline()
+        if not line:
+            break
+        if not duration:
+            continue
+        text = line.decode("utf-8", errors="replace").strip()
+        if not text or "=" not in text:
+            continue
+        key, _, value = text.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if key == "out_time_us":
+            try:
+                us = int(value)
+            except ValueError:
+                continue
+        elif key == "out_time":
+            us = _timestamp_to_us(value)
+            if us is None:
+                continue
+        else:
+            continue
+        if us < 0:
+            continue
+        frac = min(1.0, (us / 1_000_000.0) / duration)
+        update_progress(file_id, 5 + int(frac * 90))
+
+
 def _user_error(stderr: str) -> str:
     lower = stderr.lower()
     if (
@@ -149,6 +218,8 @@ def _build_command(input_path: Path, output_path: Path, settings: dict) -> list[
     if container in ("MP4", "MOV"):
         cmd.extend(["-movflags", "+faststart"])
 
+    cmd.extend(["-nostats", "-progress", "pipe:1"])
+
     cmd.append(str(output_path))
     return cmd
 
@@ -167,6 +238,18 @@ async def convert(file_id: str, entry: dict, settings: dict):
         output_ext = FORMAT_EXT.get(container, ".mp4")
         output_path = OUTPUT_DIR / f"{file_id}_{uuid.uuid4().hex[:12]}{output_ext}"
 
+        duration = await _probe_duration(input_path)
+        start = _parse_time(settings.get("start_time"))
+        end = _parse_time(settings.get("end_time"))
+        out_duration = duration
+        if duration:
+            if start:
+                out_duration -= start
+            if end:
+                out_duration = end - (start or 0.0)
+            if out_duration <= 0:
+                out_duration = duration
+
         cmd = _build_command(input_path, output_path, settings)
 
         update_progress(file_id, 5)
@@ -177,9 +260,19 @@ async def convert(file_id: str, entry: dict, settings: dict):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        pulse = asyncio.create_task(_progress_pulse(file_id))
-        _, stderr_data = await proc.communicate()
-        pulse.cancel()
+        stderr_task = asyncio.create_task(proc.stderr.read())
+        progress_task = asyncio.create_task(
+            _read_progress(proc.stdout, file_id, out_duration)
+        )
+        pulse = None
+        if not out_duration:
+            pulse = asyncio.create_task(_progress_pulse(file_id))
+
+        stderr_data = await stderr_task
+        await progress_task
+        if pulse:
+            pulse.cancel()
+        await proc.wait()
 
         if proc.returncode != 0:
             err_text = stderr_data.decode("utf-8", errors="replace").strip()
