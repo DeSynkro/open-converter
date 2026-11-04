@@ -402,13 +402,40 @@ def get_dpi(filepath: Path, mime_type: str) -> int | None:
     return None
 
 
+def _identify_dimensions(filepath: Path) -> tuple[int | None, int | None]:
+    try:
+        result = subprocess.run(
+            ["identify", "-format", "%w %h %[orientation]", f"{filepath}[0]"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode != 0:
+            return None, None
+        parts = result.stdout.split()
+        if len(parts) < 2:
+            return None, None
+        width, height = int(parts[0]), int(parts[1])
+        orientation = parts[2] if len(parts) > 2 else ""
+        if orientation in ("LeftTop", "RightTop", "RightBottom", "LeftBottom"):
+            width, height = height, width
+        return width, height
+    except (subprocess.SubprocessError, ValueError, OSError):
+        return None, None
+
+
 def get_dimensions(filepath: Path, mime_type: str) -> tuple[int | None, int | None]:
     if mime_type.startswith("image/"):
         try:
             with Image.open(filepath) as img:
-                return img.width, img.height
+                width, height = img.width, img.height
+                try:
+                    orientation = img.getexif().get(0x0112)
+                except Exception:
+                    orientation = None
+                if orientation in (5, 6, 7, 8):
+                    width, height = height, width
+                return width, height
         except Exception:
-            return None, None
+            return _identify_dimensions(filepath)
     if mime_type.startswith("video/"):
         raw = _ffprobe(filepath)
         if raw:

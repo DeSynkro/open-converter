@@ -213,23 +213,38 @@ async def file_thumb(file_id: str):
     THUMBS_DIR.mkdir(parents=True, exist_ok=True)
     thumb_path = THUMBS_DIR / f"{file_id}.jpg"
 
+    if entry["category"] not in ("image", "video"):
+        return JSONResponse({"error": "No preview available"}, status_code=404)
+
     if not thumb_path.exists() or thumb_path.stat().st_size == 0:
-        info = await _get_video_info(filepath)
-        dur = info.get("duration") or 0
-        ts = min(1.0, dur / 2) if dur else 0
-        attempts = [ts] if ts <= 0 else [ts, 0]
-        for at in attempts:
+        if entry["category"] == "image":
             cmd = [
-                "ffmpeg", "-ss", f"{at:.3f}", "-i", str(filepath),
-                "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2",
-                "-q:v", "3", "-y", str(thumb_path),
+                "convert", f"{filepath}[0]",
+                "-auto-orient", "-thumbnail", "1280x1280",
+                "-background", "white", "-alpha", "remove", "-alpha", "off",
+                "-quality", "85", str(thumb_path),
             ]
             proc = await asyncio.create_subprocess_exec(
                 *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             await proc.communicate()
-            if thumb_path.exists() and thumb_path.stat().st_size > 0:
-                break
+        else:
+            info = await _get_video_info(filepath)
+            dur = info.get("duration") or 0
+            ts = min(1.0, dur / 2) if dur else 0
+            attempts = [ts] if ts <= 0 else [ts, 0]
+            for at in attempts:
+                cmd = [
+                    "ffmpeg", "-ss", f"{at:.3f}", "-i", str(filepath),
+                    "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2",
+                    "-q:v", "3", "-y", str(thumb_path),
+                ]
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+                )
+                await proc.communicate()
+                if thumb_path.exists() and thumb_path.stat().st_size > 0:
+                    break
         if not thumb_path.exists() or thumb_path.stat().st_size == 0:
             return JSONResponse({"error": "Could not generate thumbnail"}, status_code=500)
 
@@ -768,8 +783,8 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
       <span class="settings-hint">Format: MM:SS or HH:MM:SS</span>
     </div>"""
 
-    # Crop (video, per-file)
-    if is_video and not is_group:
+    # Crop (image and video, per-file)
+    if (is_video or category == "image") and not is_group:
         crop_x = values.get("crop_x")
         crop_y = values.get("crop_y")
         crop_w = values.get("crop_w")

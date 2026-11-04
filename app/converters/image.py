@@ -60,6 +60,19 @@ async def convert(file_id: str, entry: dict, settings: dict):
 
         cmd.append("-auto-orient")
 
+        crop_w = settings.get("crop_w")
+        crop_h = settings.get("crop_h")
+        if crop_w and crop_h:
+            try:
+                cw = int(crop_w)
+                ch = int(crop_h)
+                cx = max(0, int(settings.get("crop_x") or 0))
+                cy = max(0, int(settings.get("crop_y") or 0))
+            except (TypeError, ValueError):
+                cw = ch = 0
+            if cw >= 2 and ch >= 2:
+                cmd.extend(["-crop", f"{cw}x{ch}+{cx}+{cy}", "+repage"])
+
         if settings.get("use_scale"):
             scale_pct = settings.get("scale_pct")
             if scale_pct:
