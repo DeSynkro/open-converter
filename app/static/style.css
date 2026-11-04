@@ -787,6 +787,19 @@ body {
   border-color: var(--primary);
 }
 
+/* Video settings sub-tabs (Video / Audio) */
+.video-subtabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0.3rem;
+}
+
+.video-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 /* Fields */
 .settings-body {
   display: flex;

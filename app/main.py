@@ -558,6 +558,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
     is_video = category == "video"
     has_resolution = category in ("image", "video")
     rows = ""
+    audio_rows = ""
 
     if is_video and source_info:
         rows += f"""
@@ -610,11 +611,11 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
       <span class="settings-hint">Slower presets produce smaller files at the same quality.</span>
     </div>"""
 
-    # Keep original audio (video only)
+    # Keep original audio (video only, audio sub-tab)
     if is_video:
         copy_audio_checked = ' checked' if values.get("copy_audio") else ''
         copy_audio_tip = "Copies the original audio without re-encoding, so it stays lossless and the video converts faster. If the output format does not support the source audio codec (for example MP3 in WebM), the conversion may fail or play without sound. Leave unchecked to convert the audio automatically."
-        rows += f"""
+        audio_rows += f"""
     <div class="settings-field settings-field-checkbox">
       <label class="settings-label-checkbox">
         <input type="checkbox" name="copy_audio" value="1"{copy_audio_checked}>
@@ -865,10 +866,21 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
 
     tab_row = _tab_row(category) if is_group else ""
 
+    if is_video:
+        body = f"""
+  <div class="video-subtabs">
+    <button type="button" class="mode-tab active" data-vtab="video">Video</button>
+    <button type="button" class="mode-tab" data-vtab="audio">Audio</button>
+  </div>
+  <div class="video-panel video-panel-video">{rows}</div>
+  <div class="video-panel video-panel-audio" style="display:none">{audio_rows}</div>"""
+    else:
+        body = rows
+
     return f"""<div class="settings-form" {data_attrs}>
   <div class="settings-header">{title}</div>
   {tab_row}
-  <div class="settings-body">{rows}
+  <div class="settings-body">{body}
   </div>
 </div>"""
 

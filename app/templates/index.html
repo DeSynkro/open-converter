@@ -465,6 +465,7 @@
             wireManualBitrate();
             wireTrim();
             wireCrop();
+            wireVideoSubtabs();
           })
           .catch(() => { settingsBody.innerHTML = '<p>Failed to load settings</p>'; });
       }
@@ -633,6 +634,22 @@
         cb.addEventListener('change', toggle);
       }
 
+      function wireVideoSubtabs() {
+        var bar = settingsBody.querySelector('.video-subtabs');
+        if (!bar) return;
+        var tabs = bar.querySelectorAll('.mode-tab');
+        tabs.forEach(function(tab) {
+          tab.addEventListener('click', function() {
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            this.classList.add('active');
+            var target = this.dataset.vtab;
+            settingsBody.querySelectorAll('.video-panel').forEach(function(p) {
+              p.style.display = p.classList.contains('video-panel-' + target) ? 'flex' : 'none';
+            });
+          });
+        });
+      }
+
       document.getElementById('settings-btn').addEventListener('click', function() {
         openSettings('/settings/group?category=image', true, '');
       });
@@ -692,6 +709,7 @@
             wireManualBitrate();
             wireTrim();
             wireCrop();
+            wireVideoSubtabs();
             var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
             if (gear) gear.classList.remove('edited');
           });
