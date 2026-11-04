@@ -465,6 +465,7 @@
             wireManualBitrate();
             wireTrim();
             wireCrop();
+            wireCropLock();
             wireVideoSubtabs();
           })
           .catch(() => { settingsBody.innerHTML = '<p>Failed to load settings</p>'; });
@@ -488,25 +489,28 @@
         });
       }
 
-      function wireAspectLock() {
-        const field = settingsBody.querySelector('.settings-field[data-orig-w]');
-        if (!field) return;
-        const wInput = field.querySelector('.settings-res-w');
-        const hInput = field.querySelector('.settings-res-h');
+      function wireLock(field, lockName, wSel, hSel) {
+        const wInput = field.querySelector(wSel);
+        const hInput = field.querySelector(hSel);
         const lockBtn = field.querySelector('.aspect-lock-btn');
         if (!wInput || !hInput || !lockBtn) return;
         const ow = parseFloat(field.dataset.origW);
         const oh = parseFloat(field.dataset.origH);
         if (!ow || !oh) return;
         const ratio = ow / oh;
-        const lockHidden = document.querySelector('[name="aspect_locked"]');
-        let locked = lockHidden ? lockHidden.value === '1' : false;
+        const lockHidden = field.querySelector('[name="' + lockName + '"]');
+        let locked = lockHidden ? lockHidden.value === '1' : true;
+
+        function applyIcon() {
+          lockBtn.textContent = locked ? '\u{1F517}' : '\u{1F512}';
+          lockBtn.title = locked ? 'Lock aspect ratio' : 'Unlock aspect ratio';
+        }
+        applyIcon();
 
         lockBtn.addEventListener('click', function() {
           locked = !locked;
-          lockBtn.textContent = locked ? '\u{1F517}' : '\u{1F512}';
-          lockBtn.title = locked ? 'Lock aspect ratio' : 'Unlock aspect ratio';
           if (lockHidden) lockHidden.value = locked ? '1' : '0';
+          applyIcon();
         });
 
         wInput.addEventListener('input', function() {
@@ -519,6 +523,18 @@
           if (locked && this.value) {
             wInput.value = Math.round(parseFloat(this.value) * ratio);
           }
+        });
+      }
+
+      function wireAspectLock() {
+        settingsBody.querySelectorAll('.resize-field[data-orig-w]').forEach(function(field) {
+          wireLock(field, 'aspect_locked', '.settings-res-w', '.settings-res-h');
+        });
+      }
+
+      function wireCropLock() {
+        settingsBody.querySelectorAll('.crop-field[data-orig-w]').forEach(function(field) {
+          wireLock(field, 'crop_locked', '.crop-w', '.crop-h');
         });
       }
 
@@ -709,6 +725,7 @@
             wireManualBitrate();
             wireTrim();
             wireCrop();
+            wireCropLock();
             wireVideoSubtabs();
             var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
             if (gear) gear.classList.remove('edited');

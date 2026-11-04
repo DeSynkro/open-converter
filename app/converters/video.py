@@ -148,6 +148,9 @@ def _scale_filter(settings: dict):
     max_width = settings.get("max_width")
     max_height = settings.get("max_height")
     if max_width and max_height:
+        if not settings.get("aspect_locked", True):
+            # Unlocked: use exact dimensions, which can stretch the video.
+            return f"scale=w='trunc({max_width}/2)*2':h='trunc({max_height}/2)*2'"
         return (
             f"scale=w='min(iw,{max_width})':h='min(ih,{max_height})'"
             ":force_original_aspect_ratio=decrease:force_divisible_by=2"

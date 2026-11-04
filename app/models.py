@@ -33,6 +33,7 @@ class GroupSettings(BaseModel):
     crop_y: int | None = None
     crop_w: int | None = None
     crop_h: int | None = None
+    crop_locked: bool = True
 
 
 class FileOverride(BaseModel):
@@ -58,6 +59,7 @@ class FileOverride(BaseModel):
     crop_y: int | None = None
     crop_w: int | None = None
     crop_h: int | None = None
+    crop_locked: bool | None = None
 
 
 def categorize(mime: str) -> str:
@@ -109,5 +111,6 @@ DEFAULT_SETTINGS = {
         "max_width": None, "max_height": None, "aspect_locked": True,
         "preset": "medium", "strip_metadata": False, "copy_audio": False,
         "crop_x": None, "crop_y": None, "crop_w": None, "crop_h": None,
+        "crop_locked": True,
     },
 }
