@@ -464,6 +464,7 @@
             wireAudioFormat();
             wireManualBitrate();
             wireTrim();
+            wireCrop();
           })
           .catch(() => { settingsBody.innerHTML = '<p>Failed to load settings</p>'; });
       }
@@ -615,6 +616,23 @@
         cb.addEventListener('change', toggle);
       }
 
+      function wireCrop() {
+        var cb = settingsBody.querySelector('.crop-toggle');
+        if (!cb) return;
+        var posField = cb.closest('.settings-field').nextElementSibling;
+        var sizeField = posField ? posField.nextElementSibling : null;
+        if (!posField || !sizeField) return;
+        function toggle() {
+          posField.style.display = this.checked ? 'block' : 'none';
+          sizeField.style.display = this.checked ? 'block' : 'none';
+          if (!this.checked) {
+            posField.querySelectorAll('input').forEach(function(i) { i.value = ''; });
+            sizeField.querySelectorAll('input').forEach(function(i) { i.value = ''; });
+          }
+        }
+        cb.addEventListener('change', toggle);
+      }
+
       document.getElementById('settings-btn').addEventListener('click', function() {
         openSettings('/settings/group?category=image', true, '');
       });
@@ -640,10 +658,13 @@
         }
         var trimCb = form.querySelector('.trim-toggle');
         var trimOn = trimCb ? trimCb.checked : true;
+        var cropCb = form.querySelector('.crop-toggle');
+        var cropOn = cropCb ? cropCb.checked : true;
         form.querySelectorAll('select, input').forEach(function(el) {
           if (!el.name) return;
           if (el.type === 'checkbox' && !el.checked) return;
           if (!trimOn && (el.name === 'start_time' || el.name === 'end_time')) return;
+          if (!cropOn && (el.name === 'crop_x' || el.name === 'crop_y' || el.name === 'crop_w' || el.name === 'crop_h')) return;
           fd.append(el.name, el.value);
         });
 
@@ -670,6 +691,7 @@
             wireAudioFormat();
             wireManualBitrate();
             wireTrim();
+            wireCrop();
             var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
             if (gear) gear.classList.remove('edited');
           });

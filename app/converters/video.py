@@ -159,6 +159,29 @@ def _scale_filter(settings: dict):
     return None
 
 
+def _build_filters(settings: dict):
+    filters = []
+    crop_w = settings.get("crop_w")
+    crop_h = settings.get("crop_h")
+    if crop_w and crop_h:
+        try:
+            cw = int(crop_w)
+            ch = int(crop_h)
+            cx = max(0, int(settings.get("crop_x") or 0))
+            cy = max(0, int(settings.get("crop_y") or 0))
+        except (TypeError, ValueError):
+            cw = ch = 0
+        if cw >= 2 and ch >= 2:
+            # Force even dimensions so yuv420p encoding stays valid.
+            filters.append(
+                f"crop=w='trunc({cw}/2)*2':h='trunc({ch}/2)*2':x={cx}:y={cy}"
+            )
+    scale = _scale_filter(settings)
+    if scale:
+        filters.append(scale)
+    return ",".join(filters) if filters else None
+
+
 def _crf_to_qscale(crf: int) -> int:
     # MPEG-4 Part 2 has no CRF; map 0-51 onto a sane qscale range (2-31).
     return max(2, min(31, round(2 + (crf / 51) * 29)))
@@ -203,7 +226,7 @@ def _build_command(input_path: Path, output_path: Path, settings: dict) -> list[
         cmd.extend(["-c:a", acodec, "-b:a", AUDIO_BITRATE.get(acodec, "192k")])
 
     # Resolution
-    vf = _scale_filter(settings)
+    vf = _build_filters(settings)
     if vf:
         cmd.extend(["-vf", vf])
 

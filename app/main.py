@@ -212,7 +212,7 @@ async def file_settings(file_id: str):
     if cat == "image":
         merged["output_format"] = EXT_TO_FORMAT.get(Path(entry["filename"]).suffix.lower(), "JPEG")
     if override.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset", "copy_audio"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset", "copy_audio", "crop_x", "crop_y", "crop_w", "crop_h"):
             val = override.get(key)
             if val is not None:
                 merged[key] = val
@@ -293,6 +293,10 @@ async def save_file_settings(file_id: str, request: Request):
         "end_time": form.get("end_time") or None,
         "preset": form.get("preset") or None,
         "copy_audio": form.get("copy_audio") == "1",
+        "crop_x": _int_or_none(form.get("crop_x")),
+        "crop_y": _int_or_none(form.get("crop_y")),
+        "crop_w": _int_or_none(form.get("crop_w")),
+        "crop_h": _int_or_none(form.get("crop_h")),
     }
     save_overrides(overrides)
     return HTMLResponse("")
@@ -329,7 +333,7 @@ def _resolve_settings(entry: dict) -> dict:
     overrides = load_overrides()
     ov = overrides.get(entry["id"], {})
     if ov.get("active"):
-        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset", "copy_audio"):
+        for key in ("output_format", "quality", "crf", "bitrate", "max_width", "max_height", "aspect_locked", "strip_metadata", "preserve_transparency", "use_scale", "scale_pct", "file_size_goal", "file_size_value", "file_size_unit", "dpi", "sample_rate", "channels", "manual_bitrate", "start_time", "end_time", "preset", "copy_audio", "crop_x", "crop_y", "crop_w", "crop_h"):
             val = ov.get(key)
             if val is not None:
                 base[key] = val
@@ -696,6 +700,46 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
       <label class="settings-label">End</label>
       <input type="text" class="settings-input" name="end_time" value="{end_val}" placeholder="{end_default}">
       <span class="settings-hint">Format: MM:SS or HH:MM:SS</span>
+    </div>"""
+
+    # Crop (video, per-file)
+    if is_video and not is_group:
+        crop_x = values.get("crop_x")
+        crop_y = values.get("crop_y")
+        crop_w = values.get("crop_w")
+        crop_h = values.get("crop_h")
+        crop_on = bool(crop_w and crop_h)
+        crop_checked = ' checked' if crop_on else ''
+        crop_display = "block" if crop_on else "none"
+        cx_val = crop_x if crop_x is not None else 0
+        cy_val = crop_y if crop_y is not None else 0
+        cw_val = crop_w if crop_w is not None else (orig_w or "")
+        ch_val = crop_h if crop_h is not None else (orig_h or "")
+        rows += f"""
+    <div class="settings-field settings-field-checkbox">
+      <label class="settings-label-checkbox">
+        <input type="checkbox" class="crop-toggle" value="1"{crop_checked}>
+        Crop
+      </label>
+    </div>
+    <div class="settings-field" style="display:{crop_display}">
+      <label class="settings-label">Crop Position</label>
+      <div class="settings-inline">
+        <input type="number" class="settings-input settings-res-input" name="crop_x" value="{cx_val}" placeholder="X" min="0">
+        <span class="settings-res-x">X</span>
+        <input type="number" class="settings-input settings-res-input" name="crop_y" value="{cy_val}" placeholder="Y" min="0">
+        <span class="settings-res-x">Y</span>
+      </div>
+    </div>
+    <div class="settings-field" style="display:{crop_display}">
+      <label class="settings-label">Crop Size</label>
+      <div class="settings-inline">
+        <input type="number" class="settings-input settings-res-input" name="crop_w" value="{cw_val}" placeholder="W" min="2">
+        <span class="settings-res-x">&#x00D7;</span>
+        <input type="number" class="settings-input settings-res-input" name="crop_h" value="{ch_val}" placeholder="H" min="2">
+        <span class="settings-res-x">px</span>
+      </div>
+      <span class="settings-hint">Cut out a region before resizing. X and Y are the top-left corner. Leave unchecked to keep the full frame.</span>
     </div>"""
 
     # Resolution / Scale (image only)
