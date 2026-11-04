@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.0 — Beta
+
+### Added
+- Video converter built from scratch: MP4, MKV, WebM, MOV, AVI, and FLV
+- Video group settings tab with CRF quality, encoding preset, resolution, and trim
+- Video and Audio sub-tabs inside the video settings modal
+- Per-file video crop with aspect lock and a live preview
+- Interactive crop preview: drag to move, corner handles to resize
+- Keep-original-audio option for video, with a help tooltip
+- Real video progress driven by ffmpeg progress output
+- Per-file crop for images, including the interactive preview
+- Image preview thumbnails generated with ImageMagick
+- EXIF orientation-aware image dimensions, with an ImageMagick fallback for formats Pillow cannot read
+- Encoder mapping per container, with CRF for H.264 and VP9 and qscale for MPEG-4
+
+### Changed
+- Settings modal now scrolls within the viewport and keeps its action buttons pinned
+- Settings scrollbar moved away from the form fields
+- Aspect lock tooltips now describe the action instead of the current state
+- Aspect locks capture the current ratio at the moment they are locked
+- Video resize supports stretching when the aspect lock is off
+
+### Fixed
+- Rotated and portrait images now report display-oriented dimensions for crop and resize
+- Aspect locks no longer snap back to the source ratio after being set
+
 ## 0.4.0 — Beta
 
 ### Added

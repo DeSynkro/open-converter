@@ -45,7 +45,7 @@ git pull
 docker compose up --build -d
 ```
 
-> **Beta notice.** Image and audio conversion are available. Video conversion is planned for a future release.
+> **Beta notice.** Image, audio, and video conversion are available.
 
 ## Screenshots
 
@@ -71,8 +71,14 @@ This project flips that. You run it on your own machine, your own network, your 
 - **Fully offline** — the only network request leaving your LAN is the initial `docker pull` for the base image
 - **Your files, your rules** — uploads and outputs stored as plain files on disk, fully portable, backup by copying one folder
 - **Drag-and-drop upload** — files enter only through the WebUI, auto-categorized into Images, Videos, and Audio
+- **Image conversion** — JPEG, PNG, WebP, AVIF, HEIC, BMP, TIFF, GIF, QOI, ICO
+- **Audio conversion** — MP3, AAC, FLAC, OGG, WAV, Opus, M4A, ALAC, AIFF, AC3, WMA
+- **Video conversion** — MP4, MKV, WebM, MOV, AVI, FLV
 - **Per-file overrides** — override conversion settings for individual files without affecting the group defaults
-- **Aspect ratio lock** — toggle lock to preserve original aspect ratio during resize, or unlock for exact dimensions
+- **Crop** — per-file crop for images and video with a live interactive preview and optional aspect lock
+- **Trim** — cut audio and video by start and end time
+- **Keep original audio** — for video, copy the audio stream instead of re-encoding when the container supports it
+- **Aspect ratio lock** — toggle lock to preserve the current ratio during resize or crop, or unlock for exact dimensions
 - **DPI control** — set output DPI for print-ready files; original DPI auto-detected on per-file settings
 - **File size goal** — target a specific output file size (JPEG only)
 - **Preserve transparency** — keep alpha channel for PNG, WebP, TIFF, GIF; flatten against white when unchecked
@@ -87,8 +93,9 @@ This project flips that. You run it on your own machine, your own network, your 
 |---|---|
 | Uploaded files (in `data/uploads/`) | No analytics |
 | Converted output files (in `data/converted/`) | No telemetry of any kind |
-| Settings and per-file overrides (JSON) | No logs sent anywhere |
-| Upload and conversion timestamps | No user accounts, emails, or IPs |
+| Cached preview thumbnails (in `data/thumbnails/`) | No logs sent anywhere |
+| Settings and per-file overrides (JSON) | No user accounts, emails, or IPs |
+| Upload and conversion timestamps | |
 
 HTMX, fonts, and all assets are served directly from the app itself. No CDN, analytics, or third-party servers are contacted on page load. The only network request leaving your network is the initial `docker pull` during setup.
 
@@ -101,7 +108,7 @@ HTMX, fonts, and all assets are served directly from the app itself. No CDN, ana
 | Styling | CSS with dark teal/cyan theme |
 | Image conversion | ImageMagick |
 | Audio conversion | ffmpeg (11 formats) |
-| Video conversion | ffmpeg (planned) |
+| Video conversion | ffmpeg (6 formats) |
 | Container | Docker / Docker Compose (single container) |
 | Persistence | Plain files on disk + JSON |
 
@@ -124,6 +131,8 @@ HTMX, fonts, and all assets are served directly from the app itself. No CDN, ana
 │   ├── converters/
 │   │   ├── __init__.py     Shared conversion state and dispatch
 │   │   ├── image.py        ImageMagick-based image converter
+│   │   ├── audio.py        ffmpeg-based audio converter
+│   │   └── video.py        ffmpeg-based video converter
 │   ├── templates/
 │   │   └── index.html      Single-page WebUI
 │   └── static/
@@ -137,7 +146,8 @@ HTMX, fonts, and all assets are served directly from the app itself. No CDN, ana
     ├── settings.json
     ├── overrides.json
     ├── uploads/
-    └── converted/
+    ├── converted/
+    └── thumbnails/
 ```
 
 ## Troubleshooting
