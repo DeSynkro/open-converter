@@ -783,7 +783,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         ch_val = crop_h if crop_h is not None else (orig_h or "")
         crop_locked = values.get("crop_locked", True)
         crop_lock_icon = "&#x1F517;" if crop_locked else "&#x1F512;"
-        crop_lock_title = "Lock aspect ratio" if crop_locked else "Unlock aspect ratio"
+        crop_lock_title = "Unlock aspect ratio" if crop_locked else "Lock aspect ratio"
         crop_lock_val = "1" if crop_locked else "0"
         crop_attrs = f' data-orig-w="{orig_w}" data-orig-h="{orig_h}"' if orig_w and orig_h else ""
         preview_html = ""
@@ -848,7 +848,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
             aspect_attrs = f' data-orig-w="{orig_w}" data-orig-h="{orig_h}"'
 
         lock_icon = "&#x1F517;" if aspect_locked else "&#x1F512;"
-        lock_title = "Lock aspect ratio" if aspect_locked else "Unlock aspect ratio"
+        lock_title = "Unlock aspect ratio" if aspect_locked else "Lock aspect ratio"
         lock_val = "1" if aspect_locked else "0"
         use_scale_val = "1" if use_scale_mode else "0"
         sz_display = "none" if use_scale_mode else "flex"

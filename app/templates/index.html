@@ -498,18 +498,28 @@
         const ow = parseFloat(field.dataset.origW);
         const oh = parseFloat(field.dataset.origH);
         if (!ow || !oh) return;
-        const ratio = ow / oh;
+        const sourceRatio = ow / oh;
         const lockHidden = field.querySelector('[name="' + lockName + '"]');
         let locked = lockHidden ? lockHidden.value === '1' : true;
 
+        function currentRatio() {
+          const a = parseFloat(wInput.value);
+          const b = parseFloat(hInput.value);
+          if (a > 0 && b > 0) return a / b;
+          return sourceRatio;
+        }
+
+        let ratio = currentRatio();
+
         function applyIcon() {
           lockBtn.textContent = locked ? '\u{1F517}' : '\u{1F512}';
-          lockBtn.title = locked ? 'Lock aspect ratio' : 'Unlock aspect ratio';
+          lockBtn.title = locked ? 'Unlock aspect ratio' : 'Lock aspect ratio';
         }
         applyIcon();
 
         lockBtn.addEventListener('click', function() {
           locked = !locked;
+          if (locked) ratio = currentRatio();
           if (lockHidden) lockHidden.value = locked ? '1' : '0';
           applyIcon();
         });
