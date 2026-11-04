@@ -31,6 +31,7 @@ from .models import (
     now_iso,
 )
 from .storage import (
+    THUMBS_DIR,
     UPLOADS_DIR,
     load_files,
     load_overrides,
@@ -156,6 +157,7 @@ async def delete_file(file_id: str):
     clear_conv_state(file_id)
     for out_path in CONV_OUTPUT_DIR.glob(f"{file_id}*"):
         out_path.unlink(missing_ok=True)
+    (THUMBS_DIR / f"{file_id}.jpg").unlink(missing_ok=True)
 
     return HTMLResponse("")
 
@@ -194,6 +196,44 @@ async def save_group_settings(request: Request):
     }
     save_settings(settings)
     return HTMLResponse("")
+
+
+@app.get("/files/{file_id}/thumb")
+async def file_thumb(file_id: str):
+    entries = load_files()
+    entry = next((e for e in entries if e["id"] == file_id), None)
+    if not entry:
+        return JSONResponse({"error": "File not found"}, status_code=404)
+
+    ext = Path(entry["filename"]).suffix
+    filepath = UPLOADS_DIR / f"{entry['id']}{ext}"
+    if not filepath.exists():
+        return JSONResponse({"error": "File not found on disk"}, status_code=404)
+
+    THUMBS_DIR.mkdir(parents=True, exist_ok=True)
+    thumb_path = THUMBS_DIR / f"{file_id}.jpg"
+
+    if not thumb_path.exists() or thumb_path.stat().st_size == 0:
+        info = await _get_video_info(filepath)
+        dur = info.get("duration") or 0
+        ts = min(1.0, dur / 2) if dur else 0
+        attempts = [ts] if ts <= 0 else [ts, 0]
+        for at in attempts:
+            cmd = [
+                "ffmpeg", "-ss", f"{at:.3f}", "-i", str(filepath),
+                "-frames:v", "1", "-vf", "scale='min(1280,iw)':-2",
+                "-q:v", "3", "-y", str(thumb_path),
+            ]
+            proc = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+            )
+            await proc.communicate()
+            if thumb_path.exists() and thumb_path.stat().st_size > 0:
+                break
+        if not thumb_path.exists() or thumb_path.stat().st_size == 0:
+            return JSONResponse({"error": "Could not generate thumbnail"}, status_code=500)
+
+    return FileResponse(str(thumb_path), media_type="image/jpeg")
 
 
 @app.get("/files/{file_id}/settings")
@@ -320,6 +360,9 @@ async def clear_files():
     if CONV_OUTPUT_DIR.exists():
         shutil.rmtree(str(CONV_OUTPUT_DIR))
         CONV_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    if THUMBS_DIR.exists():
+        shutil.rmtree(str(THUMBS_DIR))
+        THUMBS_DIR.mkdir(parents=True, exist_ok=True)
     save_overrides({})
     clear_conv_state()
     return HTMLResponse('<div id="file-list"></div>')
@@ -510,8 +553,29 @@ async def _get_video_info(filepath: Path) -> dict:
         info["bit_rate"] = int(fmt["bit_rate"])
     for s in data.get("streams", []):
         if s.get("codec_type") == "video" and "codec" not in info:
-            info["width"] = s.get("width")
-            info["height"] = s.get("height")
+            width = s.get("width")
+            height = s.get("height")
+            rot = 0
+            for sd in s.get("side_data_list") or []:
+                if "rotation" in sd:
+                    try:
+                        rot = int(float(sd["rotation"]))
+                    except (TypeError, ValueError):
+                        pass
+                    break
+            if not rot:
+                tags = s.get("tags") or {}
+                for key in ("rotate", "rotation"):
+                    if key in tags:
+                        try:
+                            rot = int(float(tags[key]))
+                        except (TypeError, ValueError):
+                            pass
+                        break
+            if width and height and abs(rot) % 180 == 90:
+                width, height = height, width
+            info["width"] = width
+            info["height"] = height
             info["codec"] = s.get("codec_name")
             info["fps"] = s.get("r_frame_rate")
     return info
@@ -722,14 +786,23 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         crop_lock_title = "Lock aspect ratio" if crop_locked else "Unlock aspect ratio"
         crop_lock_val = "1" if crop_locked else "0"
         crop_attrs = f' data-orig-w="{orig_w}" data-orig-h="{orig_h}"' if orig_w and orig_h else ""
+        preview_html = ""
+        if file_id and orig_w and orig_h:
+            preview_html = f"""
+    <div class="settings-field crop-preview-field" style="display:{crop_display}">
+      <div class="crop-preview" data-orig-w="{orig_w}" data-orig-h="{orig_h}">
+        <img class="crop-preview-img" src="/files/{file_id}/thumb" alt="Video preview">
+        <div class="crop-rect"></div>
+      </div>
+    </div>"""
         rows += f"""
     <div class="settings-field settings-field-checkbox">
       <label class="settings-label-checkbox">
         <input type="checkbox" class="crop-toggle" value="1"{crop_checked}>
         Crop
       </label>
-    </div>
-    <div class="settings-field" style="display:{crop_display}">
+    </div>{preview_html}
+    <div class="settings-field crop-pos-field" style="display:{crop_display}">
       <label class="settings-label">Crop Position</label>
       <div class="settings-inline">
         <input type="number" class="settings-input settings-res-input" name="crop_x" value="{cx_val}" placeholder="X" min="0">
@@ -738,7 +811,7 @@ def _settings_form_html(category: str, values: dict, *, is_group: bool, file_id:
         <span class="settings-res-x">Y</span>
       </div>
     </div>
-    <div class="settings-field crop-field"{crop_attrs} style="display:{crop_display}">
+    <div class="settings-field crop-field crop-size-field"{crop_attrs} style="display:{crop_display}">
       <label class="settings-label">Crop Size</label>
       <div class="settings-inline">
         <input type="number" class="settings-input settings-res-input crop-w" name="crop_w" value="{cw_val}" placeholder="W" min="2">

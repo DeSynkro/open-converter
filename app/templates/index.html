@@ -466,6 +466,7 @@
             wireTrim();
             wireCrop();
             wireCropLock();
+            wireCropPreview();
             wireVideoSubtabs();
           })
           .catch(() => { settingsBody.innerHTML = '<p>Failed to load settings</p>'; });
@@ -636,18 +637,49 @@
       function wireCrop() {
         var cb = settingsBody.querySelector('.crop-toggle');
         if (!cb) return;
-        var posField = cb.closest('.settings-field').nextElementSibling;
-        var sizeField = posField ? posField.nextElementSibling : null;
-        if (!posField || !sizeField) return;
+        var fields = settingsBody.querySelectorAll('.crop-preview-field, .crop-pos-field, .crop-size-field');
+        if (!fields.length) return;
         function toggle() {
-          posField.style.display = this.checked ? 'block' : 'none';
-          sizeField.style.display = this.checked ? 'block' : 'none';
-          if (!this.checked) {
-            posField.querySelectorAll('input').forEach(function(i) { i.value = ''; });
-            sizeField.querySelectorAll('input').forEach(function(i) { i.value = ''; });
+          var on = this.checked;
+          fields.forEach(function(f) { f.style.display = on ? 'block' : 'none'; });
+          if (!on) {
+            settingsBody.querySelectorAll('.crop-pos-field input, .crop-size-field input[type="number"]').forEach(function(i) {
+              i.value = '';
+            });
           }
         }
         cb.addEventListener('change', toggle);
+      }
+
+      function wireCropPreview() {
+        var preview = settingsBody.querySelector('.crop-preview');
+        if (!preview) return;
+        var rect = preview.querySelector('.crop-rect');
+        if (!rect) return;
+        var ow = parseFloat(preview.dataset.origW);
+        var oh = parseFloat(preview.dataset.origH);
+        if (!ow || !oh) return;
+        var x = settingsBody.querySelector('[name="crop_x"]');
+        var y = settingsBody.querySelector('[name="crop_y"]');
+        var w = settingsBody.querySelector('[name="crop_w"]');
+        var h = settingsBody.querySelector('[name="crop_h"]');
+        if (!x || !y || !w || !h) return;
+        function num(el, fallback) {
+          var v = parseFloat(el.value);
+          return isNaN(v) ? fallback : v;
+        }
+        function update() {
+          var cx = Math.max(0, Math.min(ow, num(x, 0)));
+          var cy = Math.max(0, Math.min(oh, num(y, 0)));
+          var cw = Math.max(0, Math.min(ow - cx, num(w, ow)));
+          var ch = Math.max(0, Math.min(oh - cy, num(h, oh)));
+          rect.style.left = (cx / ow * 100) + '%';
+          rect.style.top = (cy / oh * 100) + '%';
+          rect.style.width = (cw / ow * 100) + '%';
+          rect.style.height = (ch / oh * 100) + '%';
+        }
+        [x, y, w, h].forEach(function(el) { el.addEventListener('input', update); });
+        update();
       }
 
       function wireVideoSubtabs() {
@@ -726,6 +758,7 @@
             wireTrim();
             wireCrop();
             wireCropLock();
+            wireCropPreview();
             wireVideoSubtabs();
             var gear = document.querySelector('.gear-btn[data-id="' + settingsFileId + '"]');
             if (gear) gear.classList.remove('edited');

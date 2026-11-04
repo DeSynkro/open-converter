@@ -6,6 +6,7 @@ from .models import DEFAULT_SETTINGS
 DATA_DIR = Path("/app/data")
 UPLOADS_DIR = DATA_DIR / "uploads"
 OUTPUT_DIR = DATA_DIR / "converted"
+THUMBS_DIR = DATA_DIR / "thumbnails"
 FILES_JSON = DATA_DIR / "files.json"
 SETTINGS_JSON = DATA_DIR / "settings.json"
 OVERRIDES_JSON = DATA_DIR / "overrides.json"
@@ -14,6 +15,7 @@ OVERRIDES_JSON = DATA_DIR / "overrides.json"
 def ensure_dirs():
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    THUMBS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_files() -> list[dict]:
